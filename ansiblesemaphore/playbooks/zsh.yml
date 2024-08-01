@@ -1,0 +1,13 @@
+- name: Install zsh
+  hosts: "*"
+  become: true
+
+  tasks:
+    - name: Install zsh
+      ansible.builtin.apt:
+        name: zsh
+        state: present
+        update_cache: true
+      become: true
+
+ # ansible-playbook ./playbooks/zsh.yml --user romeo --ask-pass --ask-become-pass -i ./inventory/hosts

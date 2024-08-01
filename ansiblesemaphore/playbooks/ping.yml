@@ -1,0 +1,11 @@
+- hosts: "*"
+  become: yes
+  tasks:
+    - name: Ping all nodes
+      action: ping
+        
+# ansible-playbook ./playbooks/ping.yml --user romeo --ask-pass --ask-become-pass -i ./inventory/hosts
+
+# ansible-playbook ./playbooks/ping.yml --ask-become-pass -i ./inventory/hosts
+
+# ansible -i ./inventory/hosts all -m ping --user romeo --ask-pass
