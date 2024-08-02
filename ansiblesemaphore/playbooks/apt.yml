@@ -5,7 +5,3 @@
       apt:
         update_cache: yes
         upgrade: 'yes'
-
-# ansible-playbook ./playbooks/apt.yml --user romeo --ask-pass --ask-become-pass -i ./inventory/hosts
-
-# ansible-playbook ./playbooks/apt.yml --ask-become-pass -i ./inventory/hosts
