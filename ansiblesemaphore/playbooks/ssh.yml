@@ -9,9 +9,3 @@
         apt:
           name: openssh-server
           state: present
-
-
-
-
-
- # ansible-playbook ./playbooks/zsh.yml --user romeo --ask-pass --ask-become-pass -i ./inventory/hosts

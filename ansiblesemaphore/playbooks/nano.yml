@@ -7,5 +7,3 @@
         state: present
         update_cache: true
       become: true
-      
-# ansible-playbook ./playbooks/nano.yml --user romeo --ask-pass --ask-become-pass -i ./inventory/hosts

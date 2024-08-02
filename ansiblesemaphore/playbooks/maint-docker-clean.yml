@@ -11,5 +11,3 @@
         networks: false
         volumes: false
         builder_cache: false
-
-# ansible-playbook ./playbooks/maint-docker-clean.yml --user romeo --ask-pass --ask-become-pass -i ./inventory/hosts

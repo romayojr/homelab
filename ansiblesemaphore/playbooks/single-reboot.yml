@@ -1,12 +1,8 @@
 - name: Reboot Single Machine
-  hosts: dockervm.local
+  hosts: dns or ip # change this
   become: true
 
   tasks:
     - name: Reboot Single Machine
       ansible.builtin.reboot:
         reboot_timeout: 3600
-        
- # ansible-playbook ./playbooks/single-reboot.yml --user romeo --ask-pass --ask-become-pass -i ./inventory/hosts
-
- # ansible-playbook ./playbooks/single-reboot.yml --ask-become-pass -i ./inventory/hosts

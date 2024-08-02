@@ -6,7 +6,3 @@
     - name: Reboot machine
       ansible.builtin.reboot:
         reboot_timeout: 3600
-        
- # ansible-playbook ./playbooks/maint-reboot.yml --user romeo --ask-pass --ask-become-pass -i ./inventory/hosts
-
- # ansible-playbook ./playbooks/maint-reboot.yml --ask-become-pass -i ./inventory/hosts

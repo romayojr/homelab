@@ -13,7 +13,3 @@
       ansible.builtin.debug:
         msg: "Reboot is required"
       when: reboot_required.stat.exists
-      
-      # ansible-playbook ./playbooks/reboot-required.yml --user romeo --ask-pass --ask-become-pass -i ./inventory/hosts
-
-      # ansible-playbook ./playbooks/reboot-required.yml --ask-become-pass -i ./inventory/hosts
