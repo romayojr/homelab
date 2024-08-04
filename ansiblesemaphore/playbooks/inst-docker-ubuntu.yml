@@ -1,6 +1,6 @@
 ---
 - name: Install docker
-  hosts: "{{ my_hosts | d([]) }}"
+  hosts: ubuntu
   become: true
 
   tasks:
