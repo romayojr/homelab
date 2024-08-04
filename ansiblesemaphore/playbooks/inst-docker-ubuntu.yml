@@ -1,6 +1,6 @@
 ---
 - name: Install docker
-  hosts: ubuntu
+  hosts: 10.0.0.230
   become: true
 
   tasks:
