@@ -1,5 +1,5 @@
 - name: Clean docker
-  hosts: all
+  hosts: "*"
 
   tasks:
     - name: Prune non-dangling images
