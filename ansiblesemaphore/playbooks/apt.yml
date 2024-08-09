@@ -5,3 +5,9 @@
       apt:
         update_cache: yes
         upgrade: 'yes'
+
+- name: packages | ensure apt list dir exists
+  file:
+    path: /var/lib/apt/lists/
+    state: directory
+    mode: 0755
