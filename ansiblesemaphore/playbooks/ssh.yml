@@ -1,11 +1,9 @@
+- name: Install SSH on Linux hosts
+  hosts: "*"
+  become: true
 
-    name: Install SSH on Linux hosts
-    hosts: "*"
-    become: true
-
-    tasks:
-
-        name: Install OpenSSH package
-        apt:
-          name: openssh-server
-          state: present
+  tasks:
+   name: Install OpenSSH package
+   apt:
+    name: openssh-server
+    state: present
