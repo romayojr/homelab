@@ -1,5 +1,6 @@
 - hosts: "*"
-  become: yes
+  become: true
+  become_method: sudo
   tasks:
     - name: update apt list
       apt:
