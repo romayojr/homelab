@@ -1,0 +1,38 @@
+    name: Install NFS tools and configure NFS share
+    hosts: "*"
+    become: yes 
+
+    tasks: 
+
+        name: Install nfs-common package
+        apt:
+          name: nfs-common
+          state: present 
+
+        name: Create /nfs directory
+        file:
+          path: /nfs
+          state: directory
+          mode: "0755" 
+
+        name: Add NFS share to /etc/fstab
+        lineinfile:
+          dest: /etc/fstab
+          line: '10.0.0.3:/mnt/NAStradamus/NFSDocker /nfs nfs rw,async,noatime,hard 0 0'
+          state: present 
+
+        name: Reload systemd daemon to apply changes to fstab
+        service:
+          name: systemd-daemon-reload
+          enabled: yes
+          state: started 
+
+        name: Mount NFS share
+        mount:
+          name: /nfs
+          src: 10.0.0.3:/mnt/NAStradamus/NFSDocker
+          fstype: nfs
+          options: rw,async,noatime,hard
+          state: mounted 
+         
+     
