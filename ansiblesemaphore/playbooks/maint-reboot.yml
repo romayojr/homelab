@@ -1,5 +1,5 @@
 - name: Reboot machine
-  hosts: ubuntu
+  hosts: *
   become: true
 
   tasks:
