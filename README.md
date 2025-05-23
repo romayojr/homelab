@@ -1,3 +1,3 @@
-I just cosplay as sysadmin and dev ops at home :) Don't come for me.
+I just cosplay as Sysadmin and Dev Ops at home :) Don't come for me.
 
 [Socials](https://socials.rbjr.me/)
