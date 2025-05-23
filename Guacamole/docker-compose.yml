@@ -1,0 +1,22 @@
+services:
+  guacamole:
+    image: oznu/guacamole
+    container_name: guacamole
+    volumes:
+      - /path/to/config:/config
+    ports:
+      - 8080:8080
+    environment:
+      - America/Los_Angeles
+      - PUID=1002
+      - PGID=1002
+      - OPENID_AUTHORIZATION_ENDPOINT=https://oidc.example.com/application/o/authorize/
+      - OPENID_CLIENT_ID=YourClientIDHere # client ID from above
+      - OPENID_ISSUER=https://oidc.example.com/application/o/guacamole/
+      - OPENID_JWKS_ENDPOINT=https://oidc.example.com/application/o/guacamole/jwks/
+      - OPENID_REDIRECT_URI=https://oidc.example.com/application/o/guacamole/jwks/ # This must match the redirect URI above      
+
+    restart: unless-stopped
+volumes:
+  postgres:
+    driver: local
