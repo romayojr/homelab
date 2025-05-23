@@ -1,1 +1,19 @@
+services:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden
+    restart: unless-stopped
+    ports:
+      - 83:80/tcp
+    volumes:
+      - /path/to/directory/data:/data
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - proxy
 
+networks:
+  proxy:
+    external: true
