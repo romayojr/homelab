@@ -1,0 +1,101 @@
+- id: '1736013262608'
+  alias: HA Fingerprint Automation
+  description: ''
+  triggers:
+  - trigger: event
+    event_type: state_changed
+    event_data:
+      entity_id: event.g4_doorbell_pro_fingerprint
+    context: {}
+  conditions:
+  - condition: template
+    value_template: "{{\n   not trigger.event.data.old_state.attributes.get('restored',
+      false) and\n   not trigger.event.data.old_state.state == 'unavailable' and\n
+      \  trigger.event.data.new_state is not none and\n   trigger.event.data.new_state.attributes.event_type
+      == 'identified' and\n   (trigger.event.data.new_state.attributes.ulp_id|default(''))
+      != ''\n}}"
+  actions:
+  - action: lock.unlock
+    metadata: {}
+    data:
+      code: '8915'
+    target:
+      device_id: f7114345fe7e49b85f4e587aea7ae02a
+  mode: single
+- id: '1736013980871'
+  alias: Fingerprint Automation
+  description: ''
+  triggers:
+  - trigger: event
+    event_type: state_changed
+    event_data:
+      entity_id: event.g4_doorbell_pro_fingerprint
+  conditions:
+  - condition: template
+    value_template: "{{\n   not trigger.event.data.old_state.attributes.get('restored',
+      false) and\n   not trigger.event.data.old_state.state == 'unavailable' and\n
+      \  trigger.event.data.new_state is not none and\n   trigger.event.data.new_state.attributes.event_type
+      == 'identified' and\n   (trigger.event.data.new_state.attributes.ulp_id|default(''))
+      != ''\n}}"
+  actions:
+  - action: lock.unlock
+    metadata: {}
+    data:
+      code: '8915'
+    target:
+      device_id: f7114345fe7e49b85f4e587aea7ae02a
+  mode: single
+- id: '1739748694065'
+  alias: Unlock Entrance
+  description: ''
+  triggers:
+  - trigger: webhook
+    allowed_methods:
+    - POST
+    - PUT
+    local_only: true
+    webhook_id: -0h6y6UrFN_Uz132WzR4UIhTA
+  conditions: []
+  actions:
+  - action: lock.unlock
+    metadata: {}
+    data: {}
+    target:
+      area_id: entrance
+  mode: single
+- id: '1739749108989'
+  alias: Unlock Entrance
+  description: ''
+  triggers:
+  - trigger: webhook
+    allowed_methods:
+    - POST
+    - PUT
+    local_only: true
+    webhook_id: -mjRuDE92AkVOFq6z_QD-PJqw
+  conditions: []
+  actions:
+  - action: lock.unlock
+    metadata: {}
+    data: {}
+    target:
+      area_id: entrance
+  mode: single
+- id: '1739749543006'
+  alias: Unlock Door
+  description: ''
+  triggers:
+  - trigger: webhook
+    allowed_methods:
+    - POST
+    - PUT
+    local_only: true
+    webhook_id: -Wp-kPvrfCZAs7QoVUzh-CYCz
+  conditions: []
+  actions:
+  - action: lock.unlock
+    metadata: {}
+    data: {}
+    target:
+      area_id: entrance
+  mode: single
