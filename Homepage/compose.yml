@@ -1,0 +1,19 @@
+services:
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    ports:
+      - 3000:3000
+    env_file: /path/to/file/.env # use .env
+    volumes:
+      - /path/to/file/config:/config # Make sure your local config directory exists
+    # - /nfs/images/Wallpapers/Kerry Park.jpg:/app/public/images
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro # Optional for docker integrations, see alternatives medthods  
+    environment:
+      PUID: $PUID # read them from .env
+      PGID: $PGID # read them from .env
+      HOMEPAGE_ALLOWED_HOSTS: domain.example,IP:3000
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
