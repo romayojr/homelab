@@ -1,0 +1,32 @@
+default_config:
+# For homeassistant v2021.7.0 and above add this http block
+http:
+  use_x_forwarded_for: true
+  login_attempts_threshold: 5
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 10.0.0.7 # Add the IP address of the proxy server
+    - 192.168.1.0/24
+    - 172.18.0.0/24
+    - 127.0.0.1
+    - ::1
+    - fe80::/64
+    - fe00::/64
+    - fd00::/64
+panel_iframe:
+  configurator:
+    title: Configurator
+    icon: mdi:wrench
+    url: http://10.0.0.15:3218/
+    require_admin: true
+  nodered:
+    title: Node-Red
+    icon: mdi:shuffle-variant
+    url: http://10.0.0.15:1880/
+    require_admin: true
+mqtt:
+  broker: 10.0.0.15
+
+recorder:
+  db_url: mysql://homeassistant:Coexist-Muck-Hardcover@10.0.0.15/ha_db?charset=utf8
+  purge_keep_days: 30
