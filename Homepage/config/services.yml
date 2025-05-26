@@ -1,0 +1,46 @@
+---
+# For configuration options and examples, please see:
+# https://gethomepage.dev/latest/configs/services
+
+- Apps:
+    - Ansible:
+        ping: IP
+        icon: ansible.svg
+        href: https://FQDN.domain.com
+        description: Name
+        
+- Networking:
+    - PiHole-01:
+        icon: pi-hole.svg # icons found here https://github.com/walkxcode/dashboard-icons
+        href: https://IP/admin
+        description: Name
+        ping: IP
+        widget:
+          type: pihole
+          url: https://FQDN.domain.com
+          version: 6
+          key: "APIKEYHERE" # <--- updated with API key from PiHole  
+
+- Management:
+    - Grafana:
+        ping: IP
+        icon: grafana.svg
+        href: https://FQDN.domain.com
+        description: Health Checks        
+        widget:
+            type: grafana
+            ping: IP
+            url: https://FQDN.domain.com
+            username: Username
+            password: Password                               
+
+- Media:
+    - Plex:
+        ping: IP
+        icon: plex.svg
+        href: https://Fully.Qualified.Domain.Here
+        description: Media Server
+        widget:
+            type: plex
+            url: IP:32400
+            key: APIKEYHERE                     

@@ -1,0 +1,16 @@
+services:
+  guacamole:
+    image: oznu/guacamole
+    container_name: guacamole
+    volumes:
+      - /path/to/config:/config
+    ports:
+      - 8080:8080
+    environment:
+      - America/Los_Angeles
+      - PUID=1002
+      - PGID=1002
+    restart: unless-stopped
+volumes:
+  postgres:
+    driver: local

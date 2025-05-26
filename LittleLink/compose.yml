@@ -1,0 +1,37 @@
+services:
+  little-link:
+    image: ghcr.io/techno-tim/littlelink-server:latest
+    container_name: littlelink
+    volumes:    
+      - ~/path/to/data:/data
+    environment:
+      - META_TITLE=NAME
+      - META_DESCRIPTION=Link Page
+      - META_AUTHOR=
+      - THEME=Dark
+      - FAVICON_URL=
+      - AVATAR_URL=
+      - AVATAR_2X_URL=
+      - AVATAR_ALT=AVATAR Profile Picture
+      - NAME=
+      - BIO=YOUR | BIO | HERE
+      - DISCORD=https://discordapp.com/users/
+      - INSTAGRAM=https://instagram.com/
+      # - LINKED_IN=https://linkedin.com/in/
+      - REDDIT=https://reddit.com/u/
+      # - SOUND_CLOUD=https://soundcloud.com/
+      # - SPOTIFY=https://open.spotify.com/user/
+      # - STEAM=https://steamcommunity.com/id/
+      # - TIKTOK=https://tiktok.com/
+      # - TWITCH=https://twitch.tv/
+      - TWITTER=https://x.com/
+      - YOUTUBE=https://youtube.com/
+      # - EMAIL=name@example.com
+      - BLUESKY=https://bsky.app/profile/
+      - GITHUB=https://github.com/
+      - FOOTER=
+    ports:
+      - 3002:3000
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true

@@ -1,0 +1,50 @@
+services:
+  headscale:
+    container_name: headscale
+    volumes:
+        - ~/headscale/config:/etc/headscale/
+        - ~/headscale/keys:/var/lib/headscale/
+    ports:
+        - 8080:8080
+        - 9090:9090
+    image: headscale/headscale:0.22.3 # < --important version number
+    command: headscale serve
+    restart: unless-stopped
+
+  headscale-webui:
+    image: ghcr.io/ifargle/headscale-webui:latest
+    container_name: headscale-webui
+    environment:
+      - TZ=America/Los_Angeles
+      - COLOR=black                              # Use the base colors (ie, no darken-3, etc) - 
+      - HS_SERVER=https://subdomain.example.com   # Reachable endpoint for your Headscale server
+      - DOMAIN_NAME=https://subdomain.example.com  # The base domain name for this container.
+      - SCRIPT_NAME=/admin                    # This is your applications base path (wsgi requires the name "SCRIPT_NAME").  Remove if you are hosing at the root /
+      - KEY="YOUR-KEY-HERE"             # Generate with "openssl rand -base64 32" - used to encrypt your key on disk.
+      #- AUTH_TYPE=OIDC                        # AUTH_TYPE is either Basic or OIDC.  Empty for no authentication
+      - LOG_LEVEL=info                         # Log level.  "DEBUG", "ERROR", "WARNING", or "INFO".  Default "INFO"
+      #- ENV for Basic Auth (Used only if AUTH_TYPE is "Basic").  Can be omitted if you aren't using Basic Auth
+      - BASIC_AUTH_USER=username                 # Used for basic auth
+      - BASIC_AUTH_PASS=password          # Used for basic auth
+      #- ENV for OIDC (Used only if AUTH_TYPE is "OIDC").  Can be omitted if you aren't using OIDC
+      #- OIDC_AUTH_URL=https://authentik.romeobagay.com/application/o/headscale-webui/.well-known/openid-configuration # URL for your OIDC issuer's well-known endpoint
+      #- OIDC_CLIENT_ID=5mi08MP4tRd9PEZoHb2EgZZx5Yr3dWhCkE1z8fja        # Your OIDC Issuer's Client ID for Headscale-WebUI
+      #- OIDC_CLIENT_SECRET=r2ztrCwJotuahPlm04urxNq7thUZGydRnzlr5SlZnke94DFfBXZcxQISPAxIalw3vkxqG7cJpNp5XQqirmsC0pYxLvyz5PFggZsxpxXaE7MHzth75jPE9HJPTa0B7lNA      # Your OIDC Issuer's Secret Key for Headscale-WebUI
+    volumes:
+      - ~/headscale/volume:/data                         # Headscale-WebUI's storage.  Make sure ./volume is readable by UID 1000 (chown 1000:1000 ./volume)
+      - ~/headscale/config:/etc/headscale/:ro # Headscale's config storage location.  Used to read your Headscale config.
+    ports:
+        - 5000:5000
+    restart: unless-stopped
+
+#  portainer:
+#    image: portainer/portainer-ce:latest
+#    volumes:
+#      - /var/run/docker.sock:/var/run/docker.sock
+#      - ~/headscale/portainer_data:/data
+#    ports:
+#      - 9000:9000
+#    restart: unless-stopped
+
+volumes:
+  data:

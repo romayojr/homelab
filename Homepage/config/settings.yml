@@ -1,0 +1,89 @@
+---
+# For configuration options and examples, please see:
+# https://gethomepage.dev/latest/configs/settings
+
+title: Name of your Dashboard
+
+providers:
+  openweathermap: APIKEYHERE
+
+theme: dark # <----- add this line
+color: stone # <----- add this line
+
+background:
+  image: https://plus.unsplash.com/premium_photo-1697729704609-7ebbc2714df1?q=80&w=3514&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D Sunset Beach
+  blur: sm # sm, "", md, xl... see https://tailwindcss.com/docs/backdrop-blur
+  saturate: 60 # 0, 50, 100... see https://tailwindcss.com/docs/backdrop-saturate
+  brightness: 100 # 0, 50, 75... see https://tailwindcss.com/docs/backdrop-brightness
+  opacity: 40 # 0-100
+
+useEqualHeights: true
+iconStyle: theme
+headerstyle: underlined
+disableCollapse: false
+language: en
+statusStyle: "basic"
+showStats: true
+# fiveRows: true
+fiveColumns: true
+
+layout:
+  Calendar:
+    icon: mdi-calendar-month-outline 
+    style: row
+    columns: 2
+  Apps:
+    icon: mdi-apps
+    header: true
+    style: row
+    columns: 6
+  Hypervisor:
+    icon: mdi-cloud-print-outline
+    header: true
+    style: row
+    columns: 4    
+  Management:
+    icon: mdi-chart-line  
+    header: true
+    style: row
+    columns: 5    
+  Media:
+    icon: mdi-pirate 
+    header: true
+    style: row
+    columns: 5
+  # Media:
+  #   icon: si-vlcmediaplayer  
+  #   header: true
+  #   style: row
+  #   columns: 3
+  # DNS:
+  #   icon: mdi-dns-outline
+  #   header: true
+  #   style: row
+  #   columns: 2
+  Networking:
+    icon: mdi-vpn
+    header: true
+    style: row
+    columns: 4
+  # Storage:
+  #   icon: mdi-nas
+  #   header: true
+  #   style: row
+  #   columns: 2
+  # Management:
+  #   icon: mdi-docker
+  #   header: true
+  #   style: row
+  #   columns: 2
+  Home Automation:
+    icon: mdi-home-automation
+    header: true
+    style: row
+    columns: 2
+  # Remote Access:
+  #   icon: mdi-remote-desktop
+  #   header: true
+  #   style: row
+  #   columns: 3

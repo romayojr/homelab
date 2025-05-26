@@ -1,0 +1,12 @@
+name: immichframe
+services:
+  immichframe:
+    container_name: immichframe
+    image: ghcr.io/immichframe/immichframe:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      TZ: "America/Los_Angeles"

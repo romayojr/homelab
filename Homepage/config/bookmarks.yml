@@ -1,0 +1,44 @@
+---
+# For configuration options and examples, please see:
+# https://gethomepage.dev/latest/configs/bookmarks
+- Productivity:
+    - Github:
+        - abbr: GH
+          href: https://github.com/
+          icon: github.png
+    - VSCode:
+        - abbr: VS
+          href: https://vscode.dev/
+          icon: vscode.png
+    - IT-Tools:
+        - abbr: IT
+          href: https://it-tools.tech/
+          icon: it-tools.png
+
+- Social:
+    - Reddit:
+        - abbr: RE
+          href: https://reddit.com/
+          icon: reddit.png          
+    - Bluesky:
+        - abbr: BS
+          href: https://bsky.app
+          icon: bluesky.png
+    - Discord:
+        - abbr: DC
+          href: https://discord.com/
+          icon: discord.png
+      
+- Entertainment:
+    - YouTube:
+        - abbr: YT
+          href: https://youtube.com/
+          icon: youtube.png
+    - Twitch:
+        - abbr: TW
+          href: https://twitch.tv/
+          icon: twitch.png
+    - AppleTV+:
+        - abbr: AT
+          href: https://tv.apple.com
+          icon: apple.png

@@ -1,0 +1,44 @@
+---
+# For configuration options and examples, please see:
+# https://gethomepage.dev/latest/configs/service-widgets
+
+# - search:
+    # provider: duckduckgo
+    # target: _blank
+
+- datetime:
+    text_size: xl
+    format:
+      timeStyle: long
+      hourCycle: h23 
+
+- search:
+    provider: custom
+    url: FQDN.domain.com
+    target: _blank
+    showSearchSuggestions: true # Optional
+    suggestionUrl: https://ac.ecosia.org/autocomplete?type=list&q= # Optional
+
+- resources:
+    cpu: true
+    memory: true
+    cputemp: true
+    tempmin: 0 
+    tempmax: 100 
+    uptime: true
+    units: metric
+    refresh: 500
+    diskUnits: bytes
+    expanded: true
+    disk: /
+
+- openweathermap:
+    label: # City Here    
+    latitude: 
+    longitude: 
+    timezone: 
+    units: metric
+    cache: 5
+    format: 
+      maximumFractionDigits: 1
+    provider: # PROVIDERHERE
