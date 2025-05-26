@@ -1,0 +1,87 @@
+name: pangolin
+networks:
+  default:
+    driver: bridge
+    name: pangolin
+services:
+  crowdsec:
+    command: -t
+    container_name: crowdsec
+    environment:
+      ACQUIRE_FILES: /var/log/traefik/*.log
+      COLLECTIONS: crowdsecurity/traefik crowdsecurity/appsec-virtual-patching crowdsecurity/appsec-generic-rules
+      ENROLL_INSTANCE_NAME: pangolin-crowdsec
+      ENROLL_TAGS: docker
+      GID: "1000"
+      PARSERS: crowdsecurity/whitelists
+    expose:
+      - 6060
+    healthcheck:
+      test:
+        - CMD
+        - cscli
+        - capi
+        - status
+    image: crowdsecurity/crowdsec:latest
+    labels:
+      - traefik.enable=false
+    ports:
+      - 6060:6060
+    restart: unless-stopped
+    volumes:
+      - ./config/crowdsec:/etc/crowdsec
+      - ./config/crowdsec/db:/var/lib/crowdsec/data
+      - ./config/crowdsec_logs/auth.log:/var/log/auth.log:ro
+      - ./config/crowdsec_logs/syslog:/var/log/syslog:ro
+      - ./config/crowdsec_logs:/var/log
+      - ./config/traefik/logs:/var/log/traefik
+  gerbil:
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    command:
+      - --reachableAt=http://gerbil:3003
+      - --generateAndSaveKeyTo=/var/config/key
+      - --remoteConfig=http://pangolin:3001/api/v1/gerbil/get-config
+      - --reportBandwidthTo=http://pangolin:3001/api/v1/gerbil/receive-bandwidth
+    container_name: gerbil
+    depends_on:
+      pangolin:
+        condition: service_healthy
+    image: fosrl/gerbil:1.0.0
+    ports:
+      - 51820:51820/udp
+      - 443:443
+      - 80:80
+    restart: unless-stopped
+    volumes:
+      - ./config/:/var/config
+  pangolin:
+    container_name: pangolin
+    healthcheck:
+      interval: 3s
+      retries: 5
+      test:
+        - CMD
+        - curl
+        - -f
+        - http://localhost:3001/api/v1/
+      timeout: 3s
+    image: fosrl/pangolin:1.4.0
+    restart: unless-stopped
+    volumes:
+      - ./config:/app/config
+  traefik:
+    command:
+      - --configFile=/etc/traefik/traefik_config.yml
+    container_name: traefik
+    depends_on:
+      pangolin:
+        condition: service_healthy
+    image: traefik:v3.3.3
+    network_mode: service:gerbil
+    restart: unless-stopped
+    volumes:
+      - ./config/traefik:/etc/traefik:ro
+      - ./config/letsencrypt:/letsencrypt
+      - ./config/traefik/logs:/var/log/traefik

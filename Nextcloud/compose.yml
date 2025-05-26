@@ -1,0 +1,32 @@
+services:
+  nextcloud-aio-mastercontainer:
+    image: nextcloud/all-in-one:latest
+    init: true
+    container_name: nextcloud-aio-mastercontainer
+    environment:
+      - PUID=1000
+      - PGID=1000
+#      - TZ=${TIMEZONE}
+      - SKIP_DOMAIN_VALIDATION=true
+      - APACHE_PORT=11000
+      - APACHE_IP_BINDING=0.0.0.0
+      - NEXTCLOUD_DATADIR=/path/to/ncdata
+      - NEXTCLOUD_MOUNT=/path/to/nas
+    volumes:
+      - nextcloud_aio_mastercontainer:/mnt/docker-aio-config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+#      - 80:80
+      - 8080:8080
+      - 8443:8443
+    restart: unless-stopped
+    networks:
+      proxy:
+
+volumes:
+  nextcloud_aio_mastercontainer:
+    name: nextcloud_aio_mastercontainer
+
+networks:
+  proxy:
+    external: true
