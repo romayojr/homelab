@@ -8,7 +8,7 @@
         upgrade: 'yes'
         
     - name: remove old packages and clean cache
-    apt:
-      autoremove: yes
-      autoclean: yes
-      clean: yes      
+      apt:
+        autoremove: yes
+        autoclean: yes
+        clean: yes      
