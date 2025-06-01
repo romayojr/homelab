@@ -1,0 +1,22 @@
+---
+- name: Update Docker Compose application
+  hosts: all  # Replace with the hostname or group of your Docker host
+  become: yes  # Required if Docker daemon requires root privileges
+  gather_facts: false # Optional, disable facts gathering if not needed
+
+  tasks:
+    - name: Pull Docker Compose images
+      community.docker.docker_compose:
+        project_path: /path/to/your/docker-compose.yml  # REQUIRED: Path to your docker-compose.yml file
+        command: pull
+        state: present # Ensures the pull happens.  (Can omit, but good practice)
+
+    - name: Update Docker Compose containers
+      community.docker.docker_compose:
+        project_path: /path/to/your/docker-compose.yml # REQUIRED: Path to your docker-compose.yml file
+        command: up
+        state: started  # Ensures the containers are up, and applies updates
+        options:
+          detach: true
+          force_recreate: true
+          remove_orphans: true
