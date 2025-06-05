@@ -51,7 +51,7 @@
         docker_user: "romeo"  # Replace with the actual username
         
     - name: Log out of the user session
-      shell: pkill -HUP "{{ ansible_user_id }}"
+      shell: pkill -HUP "{{ docker_user }}"
       become: false
       register: logout
       when: logout is not defined       
