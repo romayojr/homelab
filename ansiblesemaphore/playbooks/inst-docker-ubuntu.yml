@@ -1,7 +1,7 @@
 ---
-- name: Install docker
-  hosts: "{{ my_hosts | d([]) }}"
-  become: true
+- name: Install Docker and Docker Compose on Ubuntu
+  hosts: all  # Target all hosts in your inventory
+  become: true  # Run tasks with elevated privileges (sudo)
 
   tasks:
     - name: Install docker dependencies
