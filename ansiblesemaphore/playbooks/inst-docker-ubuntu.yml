@@ -43,12 +43,12 @@
         
     - name: Add user to docker group
       user:
-        name: "{{ ansible_user_id }}"
+        name: "{{ romeo }}"
         groups: docker
         append: yes
 
     - name: Log out of the user session
-      shell: pkill -HUP "{{ ansible_user_id }}"
+      shell: pkill -HUP "{{ romeo }}"
       become: false
       register: logout
       when: logout is not defined
