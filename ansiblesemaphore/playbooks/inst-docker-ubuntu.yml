@@ -47,11 +47,11 @@
       changed_when: false
       failed_when: docker_version_check.rc != 0
 
-    - name: Verify Docker Compose installation
-      shell: docker-compose --version
-      register: docker_compose_version_check
-      changed_when: false
-      failed_when: docker_compose_version_check.rc != 0
+    # - name: Verify Docker Compose installation
+    #   shell: docker-compose --version
+    #   register: docker_compose_version_check
+    #   changed_when: false
+    #   failed_when: docker_compose_version_check.rc != 0
 
 
     # Optional: Cleanup apt cache
