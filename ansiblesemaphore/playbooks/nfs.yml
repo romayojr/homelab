@@ -6,8 +6,8 @@
   tasks: 
     - name: Install nfs-common package
       apt:
-    - name: nfs-common
-        state: present 
+        name: nfs-common
+        state: present
 
     - name: Create /nfs directory
       file:
@@ -34,5 +34,3 @@
         fstype: nfs
         options: rw,async,noatime,hard
         state: mounted 
-         
-     
