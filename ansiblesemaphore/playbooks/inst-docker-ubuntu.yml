@@ -38,7 +38,7 @@
         name: docker-ce
         state: present
         install_method: package
-      when: apt_update.changed or ansible_distribution_release == "focal" # Add a conditional for a potential issue with older releases
+      when: apt_update.changed or ansible_distribution_release == "noble" # Add a conditional for a potential issue with older releases
 
     - name: Install Docker Compose
       apt:
