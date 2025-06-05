@@ -33,13 +33,14 @@
         repo: 'deb https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable'
         state: present
 
-    - name: Install Docker Engine
-      apt:
-        name: docker-ce
-        state: present
-        install_method: package
-      when: apt_update.changed or ansible_distribution_release == "noble" # Add a conditional for a potential issue with older releases
-
+    - name: Install docker engine
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        update_cache: true
+        
     - name: Install Docker Compose
       apt:
         name: python3-pip
