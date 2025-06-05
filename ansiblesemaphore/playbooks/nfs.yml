@@ -23,7 +23,7 @@
 
     - name: Reload systemd daemon to apply changes to fstab
       service:
-        name: systemd-daemon-reload
+        name: systemctl daemon-reload
         enabled: yes
         state: started 
 
