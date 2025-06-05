@@ -22,10 +22,8 @@
         state: present 
 
     - name: Reload systemd daemon to apply changes to fstab
-      service:
-        name: systemctl daemon-reload
-        enabled: yes
-        state: started 
+      ansible.builtin.systemd_service:
+        daemon_reload: true
 
     - name: Mount NFS share
       mount:
