@@ -4,15 +4,21 @@
   become: true  # Run tasks with elevated privileges (sudo)
 
   tasks:
-    - name: Install docker dependencies
-      ansible.builtin.apt:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+      register: apt_update
+
+    - name: Install prerequisites (apt-transport-https ca-certificates curl gnupg)
+      apt:
         name:
           - apt-transport-https
           - ca-certificates
           - curl
-          - gnupg-agent
-          - software-properties-common
-        update_cache: true
+          - gnupg
+          - lsb-release
+        state: present
+      when: apt_update.changed
 
     - name: Add Docker GPG key
       apt_key:
