@@ -4,30 +4,26 @@
   become: true  # Run tasks with elevated privileges (sudo)
 
   tasks:
-    - name: Update apt cache
-      apt:
-        update_cache: yes
-      register: apt_update
-
-    - name: Install prerequisites (apt-transport-https ca-certificates curl gnupg)
-      apt:
+    - name: Install docker dependencies
+      ansible.builtin.apt:
         name:
           - apt-transport-https
           - ca-certificates
           - curl
-          - gnupg
-          - lsb-release
-        state: present
-      when: apt_update.changed
+          - gnupg-agent
+          - software-properties-common
+        update_cache: true
 
-    - name: Add Docker GPG key
-      apt_key:
+    - name: Add docker gpg key
+      ansible.builtin.apt_key:
         url: https://download.docker.com/linux/ubuntu/gpg
         state: present
+        keyring: /etc/apt/keyrings/docker.gpg
 
-    - name: Add Docker repository
-      apt_repository:
-        repo: 'deb https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable'
+    - name: Add docker repository
+      ansible.builtin.apt_repository:
+        filename: docker
+        repo: deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename | lower }} stable
         state: present
 
     - name: Install docker engine
@@ -37,50 +33,3 @@
           - docker-buildx-plugin
           - docker-compose-plugin
         update_cache: true
-
-    - name: Install Docker Compose
-      apt:
-        name: docker-compose
-        state: present
-      become: true
-      when: docker_install_result.changed
-      register: docker_compose_install_result
-
-    - name: Add user to docker group
-      user:
-        name: "{{ docker_user }}"
-        groups: docker
-        append: yes
-      vars:
-        docker_user: "romeo"  # Replace with the actual username
-        
-    - name: Log out of the user session
-      shell: pkill -HUP "{{ docker_user }}"
-      become: false
-      register: logout
-      when: logout is not defined       
-
-    - name: Check Docker Service Status
-      systemd:
-        name: docker
-        state: started
-      become: true
-      register: docker_service_status
-      ignore_errors: true
-
-    - name: Restart Docker service if changed
-      systemd:
-        name: docker
-        state: restarted
-      become: true
-      when: docker_service_status.changed
-
-    - name: Display Docker version
-      shell: docker --version
-      register: docker_version_output
-      changed_when: false  # Don't report this as a change, it's just informative.
-
-    - name: Display Docker Compose version
-      shell: docker-compose --version
-      register: docker_compose_version_output
-      changed_when: false  # Don't report this as a change, it's just informative.
