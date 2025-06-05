@@ -1,0 +1,87 @@
+---
+- name: Install Docker and Docker Compose on Ubuntu
+  hosts: all  # Target all hosts in your inventory
+  become: true  # Run tasks with elevated privileges (sudo)
+  vars:
+    docker_version: "25.0.3"  # Specify the desired Docker version
+    docker_compose_version: "2.20.1" # Specify the desired Docker Compose version
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+      register: apt_update
+
+    - name: Install prerequisites (apt-transport-https ca-certificates curl gnupg)
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+      when: apt_update.changed
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: 'deb https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable'
+        state: present
+
+    - name: Install Docker Engine
+      apt:
+        name: docker-ce
+        state: present
+        install_method: package
+      when: apt_update.changed or ansible_distribution_release == "focal" # Add a conditional for a potential issue with older releases
+
+    - name: Install Docker Compose
+      apt:
+        name: python3-pip
+        state: present
+      become: true
+
+    - name: Install Docker Compose using pip
+      pip:
+        name: docker-compose
+        version: "{{ docker_compose_version }}"
+        executable: pip3
+        state: present
+
+    - name: Add user to docker group
+      user:
+        name: "{{ ansible_user_id }}"
+        groups: docker
+        append: yes
+
+    - name: Log out of the user session
+      shell: pkill -HUP "{{ ansible_user_id }}"
+      become: false
+      register: logout
+      when: logout is not defined
+      #  This ensures the user's group membership takes effect
+
+    - name: Verify Docker installation
+      shell: docker --version
+      register: docker_version_check
+      changed_when: false
+      failed_when: docker_version_check.rc != 0
+
+    - name: Verify Docker Compose installation
+      shell: docker-compose --version
+      register: docker_compose_version_check
+      changed_when: false
+      failed_when: docker_compose_version_check.rc != 0
+
+
+    # Optional: Cleanup apt cache
+    - name: Clean up apt cache (optional)
+      apt:
+        autoremove: yes
+        state: absent
+      when: apt_update.changed
