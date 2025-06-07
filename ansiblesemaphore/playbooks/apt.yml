@@ -6,3 +6,9 @@
       apt:
         update_cache: yes
         upgrade: 'yes'
+        
+    - name: remove old packages and clean cache
+      apt:
+        autoremove: yes
+        autoclean: yes
+        clean: yes      

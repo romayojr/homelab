@@ -44,7 +44,7 @@ services:
       PAPERLESS_TIKA_ENDPOINT: http://tika:9998
       PAPERLESS_URL: https://subdomain.example.com
       PAPERLESS_ADMIN_USER: changeme
-      PAPERLESS_ADMIN_PASSWORD: YourPassword
+      PAPERLESS_ADMIN_PASSWORD: changeme
       PAPERLESS_APPS: "allauth.socialaccount.providers.openid_connect"
       # Find out how to configure Authentik: https://youtu.be/enwFWELCYJo
       PAPERLESS_SOCIALACCOUNT_PROVIDERS: '{"openid_connect": {"APPS": [{"provider_id": "authentik","name": "Authentik SSO","client_id": "xjFhZBjZNm1ug8qHqws8dHG59n9NnrXXBGmJtEeB","secret": "md5E9CCZpDZjJKd9CRNs2bJqNpvpffNyURS3PMZTED0ENaVgDvXEla6IQT3Q1zrqNV4KMByKre5IsflZ4jaK7RLl1ftxVgzFuG9ArBaIB3nHv83o3QRMXAzk66gokaR5","settings": { "server_url": "https://authentik.romeobagay.com/application/o/paperless/.well-known/openid-configuration"}}]}}'

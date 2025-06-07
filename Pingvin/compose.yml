@@ -1,0 +1,16 @@
+services:
+  pingvin-share:
+    image: stonith404/pingvin-share
+    container_name: pingvin
+    restart: unless-stopped
+    networks:
+      - proxy
+    ports:
+      - 3000:3000  # Exposes Pingvin Share on port 3000 of the host machine.
+    volumes:
+      - ./data:/opt/app/backend/data"  # Maps the host directory './data' to the container's data storage.
+      - ./data/images:/opt/app/frontend/public/img"  # Specific path for image storage within the same data directory.
+
+networks:
+  proxy:
+    external: true
