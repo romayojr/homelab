@@ -1,4 +1,4 @@
-- hosts: "*"
+- hosts: "all"
   become: yes
   tasks:
     - name: Ping all nodes
