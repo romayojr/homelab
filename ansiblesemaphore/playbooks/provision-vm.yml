@@ -1,0 +1,20 @@
+- hosts: "*"
+
+  become: yes
+  tasks:
+
+  - name: install packages
+    apt:
+      name:
+        - cifs-utils
+        - nfs-common
+        - prometheus-node-exporter
+        - qemu-guest-agent
+        - unzip
+      update_cache: yes
+
+  - name: start qemu guest agent
+    service:
+      name: qemu-guest-agent
+      state: started
+      enabled: yes
