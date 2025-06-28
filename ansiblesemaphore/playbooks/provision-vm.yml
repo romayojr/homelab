@@ -1,8 +1,8 @@
-- hosts: "*"
+- hosts: "{{ hosts }}"
 
   become: yes
   tasks:
-
+  
   - name: install packages
     apt:
       name:
