@@ -57,7 +57,7 @@
   - name: Add remote "ubuntu" user to "docker" group
     remote_user: romeo
     user:
-      name: "ubuntu"
+      name: "romeo"
       group: "docker"
       append: yes
     tags:
