@@ -10,7 +10,6 @@
         - nfs-common
         - prometheus-node-exporter
         - qemu-guest-agent
-        - unzip
       update_cache: yes
 
   - name: start qemu guest agent
