@@ -51,6 +51,7 @@
           - docker-compose-plugin
           - docker-compose
         state: present
+        update_cache: yes        
 
     - name: Add user 'romeo' to 'docker' group
       user:
