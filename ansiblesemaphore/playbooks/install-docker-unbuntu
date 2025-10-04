@@ -1,4 +1,3 @@
-# Let's create a playbook file content as a string
 ---
 - name: Install Docker Engine and Docker Compose on Ubuntu
   hosts: all
