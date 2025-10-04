@@ -1,4 +1,3 @@
----
 - name: Install Docker Engine and Docker Compose on Ubuntu
   hosts: all
   become: yes
