@@ -1,68 +1,59 @@
 - name: Install Docker Engine and Docker Compose on Ubuntu
   hosts: all
   become: yes
-tasks:
-- name: Install docker packages
-  remote_user: romeo
-  apt:
-    name: "{{ item }}"
-    state: present
-    update_cache: yes
-  with_items:
-    - apt-transport-https
-    - ca-certificates
-    - curl
-    - software-properties-common
-  tags:
-    - docker
-- name: Add Docker s official GPG key
-  remote_user: romeo
-  apt_key:
-    url: https://download.docker.com/linux/ubuntu/gpg
-    state: present
-  tags:
-    - docker
-- name: Verify that we have the key with the fingerprint
-  remote_user: romeo
-  apt_key:
-    id: 0EBFCD88
-    state: present
-  tags:
-    - docker
-- name: Set up the stable repository
-  remote_user: romeo
-  apt_repository:
-    repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu xenial stable
-    state: present
-    update_cache: yes
-  tags:
-    - docker
-- name: Update apt packages
-  remote_user: romeo
-  apt:
-    update_cache: yes
-  tags:
-    - docker
-- name: Install docker
-  remote_user: romeo
-  apt:
-    name: docker-ce
-    state: present
-    update_cache: yes
-  #notify: Start docker on boot
-  tags:
-    - docker
-- name: Add remote "romeo" user to "docker" group
-  remote_user: romeo
-  user:
-    name: "romeo"
-    group: "docker"
-    append: yes
-  tags:
-    - docker
-- name: Install docker-compose
-  remote_user: romeo
-  get_url: 
-    url : https://github.com/docker/compose/releases/download/1.25.1-rc1/docker-compose-Linux-x86_64
-    dest: /usr/local/bin/docker-compose
-    mode: 'u+x,g+x'
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install prerequisites
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+        state: present
+
+    - name: Create directory for Docker GPG key
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Add Docker GPG key
+      shell: |
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+      args:
+        creates: /etc/apt/keyrings/docker.gpg
+
+    - name: Set permissions on Docker GPG key
+      file:
+        path: /etc/apt/keyrings/docker.gpg
+        mode: '0644'
+
+    - name: Add Docker repository
+      lineinfile:
+        path: /etc/apt/sources.list.d/docker.list
+        line: 'deb [arch="{{ ansible_architecture }}" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable'
+        create: yes
+
+    - name: Update apt cache again
+      apt:
+        update_cache: yes
+
+    - name: Install Docker Engine and Compose
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+          - docker-compose
+        state: present
+
+    - name: Add user 'romeo' to 'docker' group
+      user:
+        name: romeo
+        groups: docker
+        append: yes
