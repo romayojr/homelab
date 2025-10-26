@@ -1,131 +1,61 @@
-- name: Install Docker Engine + Docker‑Compose on Ubuntu
-  hosts: all
+---
+- hosts: all
   become: true
-  gather_facts: true
-
   vars:
-    # Override in inventory/host_vars if you want a different user
-    docker_group_user: "Romeo"
+    container_count: 4
+    default_container_name: docker
+    default_container_image: ubuntu
+    default_container_command: sleep 1d
 
   tasks:
-
-    # ------------------------------------------------------------
-    # 1. Basic prerequisites
-    # ------------------------------------------------------------
-    - name: Update apt cache
+    - name: Install aptitude
       apt:
-        update_cache: yes
+        name: aptitude
+        state: latest
+        update_cache: true
 
-    - name: Install ca-certificates, curl and gnupg
+    - name: Install required system packages
       apt:
-        name:
+        pkg:
+          - apt-transport-https
           - ca-certificates
           - curl
-          - gnupg
-        state: present
-        update_cache: yes
+          - software-properties-common
+          - python3-pip
+          - virtualenv
+          - python3-setuptools
+        state: latest
+        update_cache: true
 
-    # ------------------------------------------------------------
-    # 2. Docker GPG key – download *and* de‑armored
-    # ------------------------------------------------------------
-    - name: Ensure /etc/apt/keyrings exists
-      file:
-        path: /etc/apt/keyrings
-        state: directory
-        mode: '0755'
-
-    - name: Download Docker GPG key (raw)
-      get_url:
+    - name: Add Docker GPG apt Key
+      apt_key:
         url: https://download.docker.com/linux/ubuntu/gpg
-        dest: /etc/apt/keyrings/docker.gpg.raw
-        mode: '0644'
-        force: true
+        state: present
 
-    - name: De‑armor the Docker GPG key
-      command: >
-        gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-        /etc/apt/keyrings/docker.gpg.raw
-      args:
-        creates: /etc/apt/keyrings/docker.gpg
-      register: dearmor
-      changed_when: dearmor.rc == 0 and not dearmor.stdout
-
-    - name: Remove the raw key file
-      file:
-        path: /etc/apt/keyrings/docker.gpg.raw
-        state: absent
-      when: dearmor.changed
-
-    - name: Ensure key is world‑readable
-      file:
-        path: /etc/apt/keyrings/docker.gpg
-        mode: '0644'
-
-    # ------------------------------------------------------------
-    # 3. Add Docker lodging repository
-    # ------------------------------------------------------------
-    - name: Add Docker repository (signed‑by key)
+    - name: Add Docker Repository
       apt_repository:
-        repo: |
-          deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] \
-          https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+        repo: deb https://download.docker.com/linux/ubuntu focal stable
         state: present
-      register: docker_repo
 
-    - name: Update apt cache after adding the repo
+    - name: Update apt and install docker-ce
       apt:
-        update_cache: yes
-      when: docker_repo.changed
-    - name: Set Docker repo codename (fallback to jammy for unsupported releases)
-      set_fact:
-        _docker_repo_codename: "{{ ansible_distribution_release }}"
-      when: ansible_distribution_release in ['jammy', 'focal', 'bionic']
+        name: docker-ce
+        state: latest
+        update_cache: true
 
-    - name: Fallback to jammy if your Ubuntu release is not yet supported
-      set_fact:
-        _docker_repo_codename: "jammy"
-      when: ansible_distribution_release not in ['jammy', 'focal', 'bionic']
-
-    - name: Add Docker repository with the chosen codename
-      apt_repository:
-        repo: |
-          deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] \
-          https://download.docker.com/linux/ubuntu {{ _docker_repo_codename }} stable
-        state: present
-      register: docker_repo
-  
-    # ------------------------------------------------------------
-    # 4. Install Docker & Compose packages
-    # ------------------------------------------------------------
-    - name: Install Docker Engine, Compose plugin, etc.
-      apt:
-        name:
-          - docker-ce
-          - docker-ce-cli
-          - containerd.io
-          - docker-buildx-plugin
-          - docker-compose-plugin
-          - docker-compose
-        state: present
-        update_cache: yes
-      register: docker_pkgs
-
-    # ------------------------------------------------------------
-    # 4. Add user to docker group
-    # ------------------------------------------------------------
-    - name: Ensure {{ docker_group_user }} is in docker group
-      user:
-        name: "{{ docker_group_user }}"
-        groups: docker
-        append: yes
-      register: docker_user
-
-    # ------------------------------------------------------------
-    # 5. Restart Docker if packages changed
-    # ------------------------------------------------------------
-    - name: Restart Docker service
-      systemd:
+    - name: Install Docker Module for Python
+      pip:
         name: docker
-        state: restarted
-        enabled: true
-      when: docker_pkgs.changed
+
+    - name: Pull default Docker image
+      community.docker.docker_image:
+        name: "{{ default_container_image }}"
+        source: pull
+
+    - name: Create default containers
+      community.docker.docker_container:
+        name: "{{ default_container_name }}{{ item }}"
+        image: "{{ default_container_image }}"
+        command: "{{ default_container_command }}"
+        state: present
+      with_sequence: count={{ container_count }}
