@@ -1,5 +1,5 @@
 - name: Install Docker + Docker‑Compose on Ubuntu
-  hosts: *
+  hosts: all
   become: true 
   gather_facts: true
 
