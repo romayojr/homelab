@@ -1,58 +1,72 @@
+---
 - name: Install Docker + Docker‑Compose on Ubuntu
   hosts: all
-  become: true 
+  become: true
   gather_facts: true
 
   vars:
-    # If you prefer a fixed user instead of the remote login account,
-    # override this variable in your inventory or a host_vars file.
-    docker_group_user: "{{ ansible_user }}"
+    # If you want another user, override this in inventory or host_vars
+    docker_group_user: "Romeo"
 
   tasks:
     # -------------------------------------------------------------
-    # 1. Prepare the keyring directory and import Docker’s GPG key
+    # 1. Update apt cache (the very first step in the shell script)
     # -------------------------------------------------------------
-    - name: Ensure keyrings directory exists
+    - name: Run apt‑get update
+      apt:
+        update_cache: yes
+
+    # -------------------------------------------------------------
+    # 2. Install prerequisites
+    # -------------------------------------------------------------
+    - name: Install ca‑certificates, curl and gnupg
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+        state: present
+
+    # -------------------------------------------------------------
+    # 3. Prepare keyrings directory and import Docker GPG key
+    # -------------------------------------------------------------
+    - name: Ensure /etc/apt/keyrings exists
       file:
         path: /etc/apt/keyrings
         state: directory
         mode: '0755'
-        owner: root
-        group: root
 
     - name: Download Docker GPG key to keyring
       get_url:
         url: https://download.docker.com/linux/ubuntu/gpg
         dest: /etc/apt/keyrings/docker.gpg
         mode: '0644'
-        force: true          # re‑download if the file changes
-      register: gpg_download
+        force: true
 
-    - name: Verify Docker GPG key file (ensures it is a valid key)
-      command: gpg --dearmor -o /dev/null /etc/apt/keyrings/docker.gpg
-      args:
-        warn: false
-      when: gpg_download.changed
+    - name: Make the key readable for apt
+      file:
+        path: /etc/apt/keyrings/docker.gpg
+        mode: '0644'
 
     # -------------------------------------------------------------
-    # 2. Add Docker's official APT repository
+    # 4. Add Docker’s official APT repository
     # -------------------------------------------------------------
     - name: Add Docker APT repo
       apt_repository:
-        repo: "deb [arch={{ ansible_architecture }} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
-        state: present
+        repo: "deb [arch={{ ansible_architecture | replace('x86_64','amd64') }} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
         filename: docker
+        state: present
       register: docker_repo
 
-    - name: Update apt cache (post‑repo add)
+    - name: Update apt cache after adding repo
       apt:
         update_cache: yes
       when: docker_repo.changed
 
     # -------------------------------------------------------------
-    # 3. Install Docker Engine, Docker‑Compose (plugin) & related packages
+    # 5. Install Docker & Compose packages
     # -------------------------------------------------------------
-    - name: Install Docker & related packages
+    - name: Install Docker Engine, Compose plugin and related packages
       apt:
         name:
           - docker-ce
@@ -63,15 +77,14 @@
           - docker-compose
         state: present
         update_cache: yes
-        install_recommends: false
-      register: docker_pkg_install
+      register: docker_pkg
 
     # -------------------------------------------------------------
-    # 4. Ensure the user belongs to the docker group
+    # 6. Add the user to the docker group
     # -------------------------------------------------------------
-    - name: Add user to docker group
+    - name: Ensure user is in docker group
       user:
         name: "{{ docker_group_user }}"
         groups: docker
         append: yes
-      register: docker_group_user_mod
+      register: docker_group
