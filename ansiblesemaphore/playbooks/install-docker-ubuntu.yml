@@ -76,7 +76,24 @@
       apt:
         update_cache: yes
       when: docker_repo.changed
+    - name: Set Docker repo codename (fallback to jammy for unsupported releases)
+      set_fact:
+        _docker_repo_codename: "{{ ansible_distribution_release }}"
+      when: ansible_distribution_release in ['jammy', 'focal', 'bionic']
 
+    - name: Fallback to jammy if your Ubuntu release is not yet supported
+      set_fact:
+        _docker_repo_codename: "jammy"
+      when: ansible_distribution_release not in ['jammy', 'focal', 'bionic']
+
+    - name: Add Docker repository with the chosen codename
+      apt_repository:
+        repo: |
+          deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] \
+          https://download.docker.com/linux/ubuntu {{ _docker_repo_codename }} stable
+        state: present
+      register: docker_repo
+  
     # ------------------------------------------------------------
     # 4. Install Docker & Compose packages
     # ------------------------------------------------------------
