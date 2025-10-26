@@ -1,72 +1,86 @@
----
-- name: Install Docker + Docker‑Compose on Ubuntu
+- name: Install Docker Engine + Docker‑Compose on Ubuntu
   hosts: all
   become: true
   gather_facts: true
 
   vars:
-    # If you want another user, override this in inventory or host_vars
+    # Override in inventory/host_vars if you want a different user
     docker_group_user: "Romeo"
 
   tasks:
-    # -------------------------------------------------------------
-    # 1. Update apt cache (the very first step in the shell script)
-    # -------------------------------------------------------------
-    - name: Run apt‑get update
+
+    # ------------------------------------------------------------
+    # 1. Basic prerequisites
+    # ------------------------------------------------------------
+    - name: Update apt cache
       apt:
         update_cache: yes
 
-    # -------------------------------------------------------------
-    # 2. Install prerequisites
-    # -------------------------------------------------------------
-    - name: Install ca‑certificates, curl and gnupg
+    - name: Install ca-certificates, curl and gnupg
       apt:
         name:
           - ca-certificates
           - curl
           - gnupg
         state: present
+        update_cache: yes
 
-    # -------------------------------------------------------------
-    # 3. Prepare keyrings directory and import Docker GPG key
-    # -------------------------------------------------------------
+    # ------------------------------------------------------------
+    # 2. Docker GPG key – download *and* de‑armored
+    # ------------------------------------------------------------
     - name: Ensure /etc/apt/keyrings exists
       file:
         path: /etc/apt/keyrings
         state: directory
         mode: '0755'
 
-    - name: Download Docker GPG key to keyring
+    - name: Download Docker GPG key (raw)
       get_url:
         url: https://download.docker.com/linux/ubuntu/gpg
-        dest: /etc/apt/keyrings/docker.gpg
+        dest: /etc/apt/keyrings/docker.gpg.raw
         mode: '0644'
         force: true
 
-    - name: Make the key readable for apt
+    - name: De‑armor the Docker GPG key
+      command: >
+        gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        /etc/apt/keyrings/docker.gpg.raw
+      args:
+        creates: /etc/apt/keyrings/docker.gpg
+      register: dearmor
+      changed_when: dearmor.rc == 0 and not dearmor.stdout
+
+    - name: Remove the raw key file
+      file:
+        path: /etc/apt/keyrings/docker.gpg.raw
+        state: absent
+      when: dearmor.changed
+
+    - name: Ensure key is world‑readable
       file:
         path: /etc/apt/keyrings/docker.gpg
         mode: '0644'
 
-    # -------------------------------------------------------------
-    # 4. Add Docker’s official APT repository
-    # -------------------------------------------------------------
-    - name: Add Docker APT repo
+    # ------------------------------------------------------------
+    # 3. Add Docker lodging repository
+    # ------------------------------------------------------------
+    - name: Add Docker repository (signed‑by key)
       apt_repository:
-        repo: "deb [arch={{ ansible_architecture | replace('x86_64','amd64') }} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
-        filename: docker
+        repo: |
+          deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] \
+          https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
         state: present
       register: docker_repo
 
-    - name: Update apt cache after adding repo
+    - name: Update apt cache after adding the repo
       apt:
         update_cache: yes
       when: docker_repo.changed
 
-    # -------------------------------------------------------------
-    # 5. Install Docker & Compose packages
-    # -------------------------------------------------------------
-    - name: Install Docker Engine, Compose plugin and related packages
+    # ------------------------------------------------------------
+    # 4. Install Docker & Compose packages
+    # ------------------------------------------------------------
+    - name: Install Docker Engine, Compose plugin, etc.
       apt:
         name:
           - docker-ce
@@ -77,14 +91,24 @@
           - docker-compose
         state: present
         update_cache: yes
-      register: docker_pkg
+      register: docker_pkgs
 
-    # -------------------------------------------------------------
-    # 6. Add the user to the docker group
-    # -------------------------------------------------------------
-    - name: Ensure user is in docker group
+    # ------------------------------------------------------------
+    # 4. Add user to docker group
+    # ------------------------------------------------------------
+    - name: Ensure {{ docker_group_user }} is in docker group
       user:
         name: "{{ docker_group_user }}"
         groups: docker
         append: yes
-      register: docker_group
+      register: docker_user
+
+    # ------------------------------------------------------------
+    # 5. Restart Docker if packages changed
+    # ------------------------------------------------------------
+    - name: Restart Docker service
+      systemd:
+        name: docker
+        state: restarted
+        enabled: true
+      when: docker_pkgs.changed
