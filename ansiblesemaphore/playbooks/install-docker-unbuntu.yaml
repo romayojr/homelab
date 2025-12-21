@@ -51,9 +51,3 @@
           - docker-compose-plugin
           - docker-compose
         state: present
-
-    - name: Add user 'romeo' to 'docker' group
-      user:
-        name: romeo
-        groups: docker
-        append: yes
