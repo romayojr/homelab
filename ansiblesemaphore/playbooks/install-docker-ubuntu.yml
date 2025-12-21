@@ -51,8 +51,8 @@
           - docker-compose
         state: present
 
-    - name: Add $USER to docker group
-      user:
-        name: $USER
-        groups: docker
-        append: yes
+    # - name: Add $USER to docker group
+    #   user:
+    #     name: $USER
+    #     groups: docker
+    #     append: yes
