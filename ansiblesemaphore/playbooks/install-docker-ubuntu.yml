@@ -51,6 +51,10 @@
           - docker-compose
         state: present
 
+    # add the current user to the docker group
+    - name: add user permissions
+      shell: "usermod -aG docker {{ ansible_env.SUDO_USER }}"
+
     # - name: Add $USER to docker group
     #   user:
     #     name: $USER
