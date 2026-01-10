@@ -1,8 +1,8 @@
 os: "linux"
 arch: "amd64"
 
-talos_version: v1.7.0
-talosctl_version: v1.7.5
+talos_version: v1.12.0
+talosctl_version: v1.12.0
 control_plane_ip: 10.0.0.71
 control_plane_2: 10.0.0.72
 control_plane_3: 10.0.0.73
