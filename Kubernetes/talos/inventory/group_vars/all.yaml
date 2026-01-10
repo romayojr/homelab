@@ -14,10 +14,10 @@ config_file: "/home/{{ ansible_user }}/.talos/talosconfig"
 
 kube_vip_version: "v0.8.0"
 vip_interface: eth0
-vip: 10.0.0.105
+vip: 10.0.0.110
 
 metallb_version: v0.13.12
-lb_range: 192.168.3.80-192.168.3.90
+lb_range: 10.0.0.120-10.0.0.150
 lb_pool_name: first-pool
 
 ansible_user: romeo
