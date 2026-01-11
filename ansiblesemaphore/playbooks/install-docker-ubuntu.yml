@@ -1,6 +1,6 @@
 - name: Install Docker Engine and Docker Compose on Ubuntu
   hosts: all
-  become: yes
+  become: true
   tasks:
     - name: Update apt cache
       apt:

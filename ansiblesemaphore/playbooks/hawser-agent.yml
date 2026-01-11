@@ -1,0 +1,61 @@
+---
+- name: Install Hawser Agent on Ubuntu VM
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Check if Docker daemon is running
+      ansible.builtin.debug:
+        msg: "Docker is installed. Verifying daemon status..."
+
+    - name: Check if container is already running
+      ansible.builtin.command: docker ps -a --filter "name={{ hawser_container_name }}" --format "{{ '{{' }}{{ '{{' }}' }}name{{ '}}' }}{{ '}}' }}"
+      register: existing_container
+      changed_when: false
+
+    - name: Pull Hawser container image
+      community.docker.docker_image:
+        name: "{{ hawser_container_image }}"
+        source: pull
+        force_source: false
+      register: image_pull
+
+    - name: Stop and remove existing container (if exists)
+      community.docker.docker_container:
+        name: "{{ hawser_container_name }}"
+        state: absent
+      when: existing_container.stdout == hawser_container_name
+
+    - name: Run Hawser container
+      community.docker.docker_container:
+        name: "{{ hawser_container_name }}"
+        image: "{{ hawser_container_image }}"
+        state: started
+        restart_policy: "{{ hawser_restart_policy }}"
+        restart: true
+        ports:
+          - "{{ hawser_port }}:{{ hawser_port }}"
+        volumes:
+          - /var/run/docker.sock:/var/run/docker.sock
+        env:
+          TOKEN: "{{ hawser_token }}"
+        detach: true
+        cleanup: true
+
+    - name: Verify container is running
+      ansible.builtin.command: docker ps --filter "name={{ hawser_container_name }}" --format "{{ '{{' }}{{ '{{' }}' }}name{{ '}}' }}{{ '}}' }}"
+      register: container_running
+      changed_when: false
+      until: container_running.stdout == hawser_container_name
+      retries: 5
+      delay: 10
+
+    - name: Display container status
+      ansible.builtin.debug:
+        msg: |
+          Hawser Agent Status:
+            Container: {{ hawser_container_name }}
+            Image: {{ hawser_container_image }}
+            Port: {{ hawser_port }}
+            Status: {{ container_running.stdout }}
