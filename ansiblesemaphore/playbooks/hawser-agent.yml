@@ -16,11 +16,6 @@
       ansible.builtin.debug:
         msg: "Docker is installed. Verifying daemon status..."
 
-    - name: Check if container is already running
-      ansible.builtin.command: docker ps -a --filter "name={{ hawser_container_name }}" --format "{{ '{{' }}{{ '{{' }}' }}name{{ '}}' }}{{ '}}' }}"
-      register: existing_container
-      changed_when: false
-
     - name: Pull Hawser container image
       community.docker.docker_image:
         name: "{{ hawser_container_image }}"
