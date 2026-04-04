@@ -1,8 +1,8 @@
 ---
 - name: Install Hawser Agent on Ubuntu VM
   hosts: all
-  become: yes
-  gather_facts: yes
+  become: true
+  gather_facts: true
 
   vars:
     hawser_container_name: "hawser"
