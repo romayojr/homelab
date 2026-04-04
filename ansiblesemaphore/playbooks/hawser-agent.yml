@@ -4,6 +4,13 @@
   become: true
   gather_facts: true
 
+  vars:
+    hawser_container_name: "hawser"
+    hawser_container_image: "ghcr.io/finsys/hawser:latest"
+    hawser_port: 2376
+    hawser_token: "Tarnish-Turbojet-Pod2"
+    hawser_restart_policy: "unless-stopped"
+
   tasks:
     - name: Check if Docker daemon is running
       ansible.builtin.debug:
