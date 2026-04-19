@@ -1,0 +1,41 @@
+---
+- name: Install Hawser Agent on Ubuntu VM
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    hawser_container_name: "hawser"
+    hawser_container_image: "ghcr.io/finsys/hawser:latest"
+    hawser_port: 2376
+    hawser_token: "Tarnish-Turbojet-Pod2"
+    hawser_restart_policy: "unless-stopped"
+
+  tasks:
+    - name: Pull Hawser container image
+      community.docker.docker_image:
+        name: "{{ hawser_container_image }}"
+        source: pull
+        force_source: false
+
+    - name: Run Hawser container
+      community.docker.docker_container:
+        name: "{{ hawser_container_name }}"
+        image: "{{ hawser_container_image }}"
+        state: started
+        restart_policy: "{{ hawser_restart_policy }}"
+        ports:
+          - "{{ hawser_port }}:{{ hawser_port }}"
+        volumes:
+          - /var/run/docker.sock:/var/run/docker.sock
+        env:
+          TOKEN: "{{ hawser_token }}"
+        detach: true
+
+    - name: Display container status
+      ansible.builtin.debug:
+        msg: |
+          Hawser Agent Deployed Successfully
+            Container: {{ hawser_container_name }}
+            Image: {{ hawser_container_image }}
+            Port: {{ hawser_port }}

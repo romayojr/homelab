@@ -1,0 +1,62 @@
+- name: Install Docker Engine and Docker Compose on Ubuntu
+  hosts: all
+  become: true
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install required packages
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+        state: present
+
+    - name: Create directory for Docker GPG key
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Add Docker GPG key
+      shell: |
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+    - name: Set permissions for Docker GPG key
+      file:
+        path: /etc/apt/keyrings/docker.gpg
+        mode: '0644'
+
+    - name: Add Docker repository
+      shell: |
+        echo \
+          "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+          "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+          tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    - name: Update apt cache again after adding repository
+      apt:
+        update_cache: yes
+
+    - name: Install Docker Engine and Compose
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+          - docker-compose
+        state: present
+
+    # add the current user to the docker group
+    - name: add user permissions
+      shell: "usermod -aG docker {{ ansible_env.SUDO_USER }}"
+
+    # - name: Add $USER to docker group
+    #   user:
+    #     name: $USER
+    #     groups: docker
+    #     append: yes
