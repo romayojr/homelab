@@ -8,7 +8,7 @@
 
     - name: Step 2 - Pause to allow routing tables to settle
       pause:
-        minutes: 1
+        seconds: 5
 
     - name: Step 3 - Run apt update and upgrade
       apt:
@@ -17,7 +17,7 @@
 
     - name: Step 4 - Pause to ensure upgrade is completely finished
       pause:
-        minutes: 1
+        seconds: 5
 
     - name: Step 5 - Bring NetBird back up
       shell: netbird up
