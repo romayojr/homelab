@@ -1,0 +1,30 @@
+- hosts: "*"
+  become: true    
+  become_method: sudo
+  tasks:
+    - name: Step 1 - Shutdown NetBird
+      shell: netbird down
+      ignore_errors: true
+
+    - name: Step 2 - Pause to allow routing tables to settle
+      pause:
+        minutes: 1
+
+    - name: Step 3 - Run apt update and upgrade
+      apt:
+        update_cache: yes
+        upgrade: 'yes'
+
+    - name: Step 4 - Pause to ensure upgrade is completely finished
+      pause:
+        minutes: 1
+
+    - name: Step 5 - Bring NetBird back up
+      shell: netbird up
+      ignore_errors: true
+
+    - name: Step 6 - Clean up old packages
+      apt:
+        autoremove: yes
+        autoclean: yes
+        clean: yes

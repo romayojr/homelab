@@ -1,0 +1,50 @@
+services:
+  unsloth:
+    image: ghcr.io/ggml-org/llama.cpp:full-cuda
+    container_name: llama.cpp
+    restart: unless-stopped
+    runtime: nvidia
+
+    # Networking
+    ports:
+      - "8001:8000"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
+    # Storage
+    volumes:
+      - /mnt/v/llama.cpp/models:/models:ro   # read-only (remove :ro if you need write access)
+
+    # Runtime – note the leading -s (server) flag
+    command: >
+      -s
+      --no-warmup
+      --no-mmap
+      --no-mlock
+      --model /models/gpt-oss-120b-mxfp4-00001-of-00003.gguf
+      --host 0.0.0.0
+      --port 8000
+      --ctx-size 16384
+      --n-cpu-moe 8
+      --n-gpu-layers 999
+      --flash-attn auto
+      --jinja --reasoning-format none
+      --temp 1.0
+      --min-p 0.0
+      --top-p 1.0
+      --top-k 0.0
+
+    # (Optional) keep if you ever move to Swarm
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    # (Optional) environment variables
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: America/Los_Angeles
