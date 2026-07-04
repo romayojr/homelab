@@ -9,7 +9,7 @@
 # For more information on how to configure Synapse, including a complete accounting of
 # each option, go to docs/usage/configuration/config_documentation.md or
 # https://matrix-org.github.io/synapse/latest/usage/configuration/config_documentation.html
-server_name: "matrix.romeobagay.com"
+server_name: "sub.domain.tld"
 pid_file: /data/homeserver.pid
 listeners:
   - port: 8008
@@ -22,19 +22,19 @@ listeners:
 database:
  name: psycopg2
  args:
-   user: admin
-   password: celibacy-ambiguity-nearby-laborer-gradation
+   user: example
+   password: your-password-here
    database: synapse
    host: synapse-db
    cp_min: 5
    cp_max: 10
-log_config: "/data/matrix.romeobagay.com.log.config"
+log_config: "/data/sub.domain.tld.log.config"
 media_store_path: /data/media_store
-registration_shared_secret: "g7JiHDbr943#-6L2gxP2Oh*PlyV+*uGv2H:sh_I.Kr-S~VoxBF"
+registration_shared_secret: "your-secret-here"
 report_stats: false
-macaroon_secret_key: "Sb9psxgjIB3m0uZAXWSaO9yXjV;cki_aX7AC*hwT6Q=5@8tOVy"
-form_secret: "qT~uJfqbsSM+X1L^:pkC=KAWL#Ql1j45AXU+&~6RTL;~js7:#C"
-signing_key_path: "/data/matrix.romeobagay.com.signing.key"
+macaroon_secret_key: "your-secret-here"
+form_secret: "your-secret-here"
+signing_key_path: "/data/sub.domain.tld.signing.key"
 trusted_key_servers:
   - server_name: "matrix.org"
 enable_registration: true
