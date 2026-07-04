@@ -1,0 +1,52 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: netbird
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: netbird
+  template:
+    metadata:
+      labels:
+        app: netbird
+    spec:
+      containers:
+        - name: netbird
+          image: netbirdio/netbird:latest
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            privileged: true
+          env:
+            - name: NB_SETUP_KEY
+              value: "E52E2386-ECC0-4910-A74E-02C86FACEC75"
+            - name: NB_HOSTNAME
+              value: "netbird-k8s-agent"
+            - name: NB_LOG_LEVEL
+              value: "info"
+          livenessProbe:
+            exec:
+              command: ["netbird", "status", "--check", "live"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["netbird", "status", "--check", "ready"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            exec:
+              command: ["netbird", "status", "--check", "startup"]
+            periodSeconds: 2
+            timeoutSeconds: 10
+            failureThreshold: 30
