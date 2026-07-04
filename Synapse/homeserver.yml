@@ -74,7 +74,7 @@ email:
   # Note that the placeholder must be written '%(app)s', including the
   # trailing 's'.
   #
-  notif_from: "%(app)s <noreply@romeobagay.com>"
+  notif_from: "%(app)s <noreply@domain.tld>"
 
   # app_name defines the default value for '%(app)s' in notif_from and email
   # subjects. It defaults to 'Matrix'.
