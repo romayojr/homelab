@@ -1,0 +1,136 @@
+---
+- name: Automate Talos Omni On-Prem Installation (Basic Auth)
+  hosts: omni_servers
+  become: true
+  vars:
+    omni_version: "1.4.6"
+    omni_domain: "omni.yourdomain.com"
+    omni_admin_email: "admin@yourdomain.com"
+    omni_work_dir: "/root/omni"
+    omni_env_file: "{{ omni_work_dir }}/omni.env"
+    omni_compose_file: "{{ omni_work_dir }}/compose.yaml"
+    
+    # Paths matching certbot default structure
+    tls_cert_path: "/etc/letsencrypt/live/{{ omni_domain }}/fullchain.pem"
+    tls_key_path: "/etc/letsencrypt/live/{{ omni_domain }}/privkey.pem"
+    etcd_encryption_key: "{{ omni_work_dir }}/omni.asc"
+
+  tasks:
+    - name: Create working directory
+      ansible.builtin.file:
+        path: "{{ omni_work_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Install required system packages
+      ansible.builtin.package:
+        name:
+          - docker.io
+          - docker-compose-plugin
+          - certbot
+          - python3-certbot-nginx
+          - gpg
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Start and enable Docker service
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Generate Let's Encrypt certificates
+      community.general.certbot:
+        certbot: /usr/bin/certbot
+        cert_name: "{{ omni_domain }}"
+        email: "{{ omni_admin_email }}"
+        agree_terms: true
+        validate_certs: false
+        auth: standalone
+      register: cert_result
+      # Note: Ensure port 80 is free or switch to 'auth: dns' with your provider plugin
+
+    - name: Generate UUID for Omni account
+      ansible.builtin.command: uuidgen
+      register: omni_uuid
+      changed_when: false
+
+    - name: Generate GPG key for etcd encryption (no passphrase)
+      ansible.builtin.command: >
+        gpg --batch --gen-key <<EOF
+        %no-protection
+        Key-Type: RSA
+        Key-Length: 4096
+        Name-Real: Omni etcd encryption
+        Name-Email: omni@localhost
+        Expire-Date: 0
+        %commit
+        EOF
+      args:
+        creates: "{{ omni_work_dir }}/.gpg_key_generated"
+      register: gpg_gen
+
+    - name: Mark GPG key generation as complete
+      ansible.builtin.copy:
+        content: "done"
+        dest: "{{ omni_work_dir }}/.gpg_key_generated"
+      when: gpg_gen is changed
+
+    - name: Export GPG secret key to omni.asc
+      ansible.builtin.command: >
+        gpg --export-secret-keys --armor
+        $(gpg --list-secret-keys --keyid-format LONG | grep sec -A1 | grep -oE '[A-F0-9]{40}')
+        > {{ etcd_encryption_key }}
+      args:
+        creates: "{{ etcd_encryption_key }}"
+
+    - name: Download official Omni environment template
+      ansible.builtin.get_url:
+        url: "https://raw.githubusercontent.com/siderolabs/omni/v{{ omni_version }}/deploy/env.template"
+        dest: "{{ omni_env_file }}"
+        mode: '0644'
+
+    - name: Configure omni.env with Basic Auth & local paths
+      ansible.builtin.lineinfile:
+        path: "{{ omni_env_file }}"
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        state: present
+      loop:
+        - { regexp: '^OMNI_ACCOUNT_UUID=', line: 'OMNI_ACCOUNT_UUID={{ omni_uuid.stdout }}' }
+        - { regexp: '^OMNI_DOMAIN_NAME=', line: 'OMNI_DOMAIN_NAME={{ omni_domain }}' }
+        - { regexp: '^ADVERTISED_API_URL=', line: 'ADVERTISED_API_URL=https://{{ omni_domain }}' }
+        - { regexp: '^SIDEROLINK_ADVERTISED_API_URL=', line: 'SIDEROLINK_ADVERTISED_API_URL=https://{{ omni_domain }}:8090/' }
+        - { regexp: '^ADVERTISED_K8S_PROXY_URL=', line: 'ADVERTISED_K8S_PROXY_URL=https://{{ omni_domain }}:8100/' }
+        - { regexp: '^SIDEROLINK_WIREGUARD_ADVERTISED_ADDR=', line: 'SIDEROLINK_WIREGUARD_ADVERTISED_ADDR={{ omni_domain }}:50180' }
+        - { regexp: '^INITIAL_USER_EMAILS=', line: 'INITIAL_USER_EMAILS={{ omni_admin_email }}' }
+        - { regexp: '^TLS_CERT=', line: 'TLS_CERT={{ tls_cert_path }}' }
+        - { regexp: '^TLS_KEY=', line: 'TLS_KEY={{ tls_key_path }}' }
+        - { regexp: '^ETCD_ENCRYPTION_KEY=', line: 'ETCD_ENCRYPTION_KEY={{ etcd_encryption_key }}' }
+        # Swap Auth0 for Basic Auth
+        - { regexp: '^AUTH=', line: 'AUTH=--auth-basic-enabled=true' }
+
+    - name: Remove unused Auth0 variables from omni.env
+      ansible.builtin.lineinfile:
+        path: "{{ omni_env_file }}"
+        regexp: "^AUTH0_"
+        state: absent
+
+    - name: Download official Docker Compose template
+      ansible.builtin.get_url:
+        url: "https://raw.githubusercontent.com/siderolabs/omni/v{{ omni_version }}/deploy/compose.yaml"
+        dest: "{{ omni_compose_file }}"
+        mode: '0644'
+
+    - name: Replace Auth0 flags with Basic Auth in compose.yaml
+      ansible.builtin.replace:
+        path: "{{ omni_compose_file }}"
+        regexp: '      --auth-auth0-enabled=true\n      --auth-auth0-domain=\\$\\{AUTH0_DOMAIN\\}\n      --auth-auth0-client-id=\\$\\{AUTH0_CLIENT_ID\\}'
+        replace: '      --auth-basic-enabled=true'
+
+    - name: Deploy Omni stack via Docker Compose
+      community.docker.docker_compose_v2:
+        project_src: "{{ omni_work_dir }}"
+        env_file: "{{ omni_env_file }}"
+        state: present
+        build: false
