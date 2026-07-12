@@ -1,6 +1,6 @@
 ---
 - name: Automate Talos Omni On-Prem Installation (Basic Auth)
-  hosts: all
+  hosts: all  # CHANGED: Targets all hosts in the inventory (including 'vms')
   become: true
   vars:
     omni_version: "1.4.6"
@@ -10,7 +10,6 @@
     omni_env_file: "{{ omni_work_dir }}/omni.env"
     omni_compose_file: "{{ omni_work_dir }}/compose.yaml"
     
-    # Paths matching certbot default structure
     tls_cert_path: "/etc/letsencrypt/live/{{ omni_domain }}/fullchain.pem"
     tls_key_path: "/etc/letsencrypt/live/{{ omni_domain }}/privkey.pem"
     etcd_encryption_key: "{{ omni_work_dir }}/omni.asc"
@@ -27,6 +26,7 @@
         name:
           - docker.io
           - docker-compose-plugin
+          - python3-docker  # ADDED: Required for docker_compose_v2 module
           - certbot
           - python3-certbot-nginx
           - gpg
@@ -48,7 +48,6 @@
         validate_certs: false
         auth: standalone
       register: cert_result
-      # Note: Ensure port 80 is free or switch to 'auth: dns' with your provider plugin
 
     - name: Generate UUID for Omni account
       ansible.builtin.command: uuidgen
@@ -77,7 +76,7 @@
       when: gpg_gen is changed
 
     - name: Export GPG secret key to omni.asc
-      ansible.builtin.command: >
+      ansible.builtin.shell: > # CHANGED: Must be 'shell' to support $(...) syntax
         gpg --export-secret-keys --armor
         $(gpg --list-secret-keys --keyid-format LONG | grep sec -A1 | grep -oE '[A-F0-9]{40}')
         > {{ etcd_encryption_key }}
@@ -107,7 +106,6 @@
         - { regexp: '^TLS_CERT=', line: 'TLS_CERT={{ tls_cert_path }}' }
         - { regexp: '^TLS_KEY=', line: 'TLS_KEY={{ tls_key_path }}' }
         - { regexp: '^ETCD_ENCRYPTION_KEY=', line: 'ETCD_ENCRYPTION_KEY={{ etcd_encryption_key }}' }
-        # Swap Auth0 for Basic Auth
         - { regexp: '^AUTH=', line: 'AUTH=--auth-basic-enabled=true' }
 
     - name: Remove unused Auth0 variables from omni.env
