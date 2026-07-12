@@ -1,6 +1,6 @@
 ---
 - name: Automate Talos Omni On-Prem Installation (Basic Auth)
-  hosts: omni_servers
+  hosts: all
   become: true
   vars:
     omni_version: "1.4.6"
