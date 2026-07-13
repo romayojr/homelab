@@ -21,7 +21,7 @@
           - python3-docker
           - certbot
           - gpg
-          - util-linux  # Ensures uuidgen is available
+          - util-linux
         state: present
       when: ansible_os_family == "Debian"
 
@@ -43,9 +43,8 @@
       register: cert_result
 
     - name: Generate UUID for Omni account
-      ansible.builtin.command: uuidgen
+      ansible.builtin.shell: uuidgen
       register: omni_uuid
-      changed_when: true # Force this to run to ensure we have a UUID
 
     - name: Generate GPG key for etcd encryption (no passphrase)
       ansible.builtin.command: >
@@ -76,7 +75,7 @@
       args:
         creates: "{{ etcd_encryption_key }}"
 
-    # --- LOCAL CONFIG GENERATION (Bypasses Download Issues) ---
+    # --- LOCAL CONFIG GENERATION ---
     
     - name: Create Omni working directory
       ansible.builtin.file:
@@ -172,11 +171,12 @@
 
               restart: always
         mode: '0644'
-    # --------------------------------------------------------
+    # ------------------------------
 
     - name: Deploy Omni stack via Docker Compose
       community.docker.docker_compose_v2:
         project_src: "{{ omni_work_dir }}"
-        env_file: "{{ omni_env_file }}"
+        env_files:
+          - "{{ omni_env_file }}" # <--- FIX: Changed to env_files (list)
         state: present
-        build: 'never'  # <--- CHANGED: Must be string 'never' instead of boolean false
+        build: 'never'
