@@ -45,7 +45,7 @@
     - name: Generate UUID for Omni account
       ansible.builtin.command: uuidgen
       register: omni_uuid
-      # removed changed_when: false to ensure it runs and captures output
+      changed_when: true # Force this to run to ensure we have a UUID
 
     - name: Generate GPG key for etcd encryption (no passphrase)
       ansible.builtin.command: >
@@ -76,62 +76,103 @@
       args:
         creates: "{{ etcd_encryption_key }}"
 
-    # --- ROBUST DOWNLOAD SECTION ---
-    - name: Ensure Omni working directory exists
+    # --- LOCAL CONFIG GENERATION (Bypasses Download Issues) ---
+    
+    - name: Create Omni working directory
       ansible.builtin.file:
         path: "{{ omni_work_dir }}"
         state: directory
         mode: '0755'
 
-    - name: Download Omni environment template
-      ansible.builtin.get_url:
-        url: "https://raw.githubusercontent.com/siderolabs/omni/v{{ omni_version }}/deploy/env.template"
+    - name: Generate omni.env configuration
+      ansible.builtin.copy:
         dest: "{{ omni_env_file }}"
-        mode: '0644'
-        force: true
-        validate_certs: no
+        content: |
+          # Omni
+          OMNI_IMG_TAG={{ omni_version }}
+          OMNI_ACCOUNT_UUID={{ omni_uuid.stdout }}
+          NAME=omni
+          EVENT_SINK_PORT=8091
 
-    - name: Download Omni Docker Compose template
-      ansible.builtin.get_url:
-        url: "https://raw.githubusercontent.com/siderolabs/omni/v{{ omni_version }}/deploy/compose.yaml"
+          # =========================
+          # Storage (Required in 1.4.x)
+          # =========================
+          SQLITE_STORAGE_PATH=/_out/sqlite/omni.sqlite.db
+
+          ## Keys and Certs
+          TLS_CERT={{ tls_cert_path }}
+          TLS_KEY={{ tls_key_path }}
+          ETCD_VOLUME_PATH=/etc/etcd
+          ETCD_ENCRYPTION_KEY={{ etcd_encryption_key }}
+
+          ## Binding
+          BIND_ADDR=0.0.0.0:443
+          MACHINE_API_BIND_ADDR=0.0.0.0:8090
+          K8S_PROXY_BIND_ADDR=0.0.0.0:8100
+
+          ## Domains and Advertisements
+          OMNI_DOMAIN_NAME={{ omni_domain }}
+          ADVERTISED_API_URL=https://{{ omni_domain }}
+          SIDEROLINK_ADVERTISED_API_URL=https://{{ omni_domain }}:8090/
+          ADVERTISED_K8S_PROXY_URL=https://{{ omni_domain }}:8100/
+          SIDEROLINK_WIREGUARD_ADVERTISED_ADDR={{ omni_domain }}:50180
+
+          ## Users
+          INITIAL_USER_EMAILS={{ omni_admin_email }}
+
+          ## Authentication
+          AUTH=--auth-basic-enabled=true
+        mode: '0644'
+
+    - name: Generate compose.yaml configuration
+      ansible.builtin.copy:
         dest: "{{ omni_compose_file }}"
+        content: |
+          name: omni-on-prem
+
+          services:
+            omni:
+              container_name: omni
+              image: ghcr.io/siderolabs/omni:${OMNI_IMG_TAG}
+
+              network_mode: host
+
+              devices:
+                - /dev/net/tun
+
+              cap_add:
+                - NET_ADMIN
+
+              volumes:
+                - ${ETCD_VOLUME_PATH}:/_out/etcd
+                - /root/omni/sqlite:/_out/sqlite
+                - ${ETCD_ENCRYPTION_KEY}:/omni.asc
+                - ${TLS_CERT}:/tls.crt
+                - ${TLS_KEY}:/tls.key
+
+              command: >
+                --account-id=${OMNI_ACCOUNT_UUID}
+                --name=${NAME}
+                --sqlite-storage-path=${SQLITE_STORAGE_PATH}
+                --cert=/tls.crt
+                --key=/tls.key
+                --machine-api-cert=/tls.crt
+                --machine-api-key=/tls.key
+                --private-key-source=file:///omni.asc
+                --event-sink-port=${EVENT_SINK_PORT}
+                --bind-addr=${BIND_ADDR}
+                --machine-api-bind-addr=${MACHINE_API_BIND_ADDR}
+                --k8s-proxy-bind-addr=${K8S_PROXY_BIND_ADDR}
+                --advertised-api-url=${ADVERTISED_API_URL}
+                --advertised-kubernetes-proxy-url=${ADVERTISED_K8S_PROXY_URL}
+                --siderolink-api-advertised-url=${SIDEROLINK_ADVERTISED_API_URL}
+                --siderolink-wireguard-advertised-addr=${SIDEROLINK_WIREGUARD_ADVERTISED_ADDR}
+                --initial-users=${INITIAL_USER_EMAILS}
+                --auth-basic-enabled=true
+
+              restart: always
         mode: '0644'
-        force: true
-        validate_certs: no
-    # ------------------------------
-
-    - name: Configure omni.env with Basic Auth & local paths
-      ansible.builtin.lineinfile:
-        path: "{{ omni_env_file }}"
-        regexp: "{{ item.regexp }}"
-        line: "{{ item.line }}"
-        state: present
-        create: yes
-      loop:
-        - { regexp: '^OMNI_ACCOUNT_UUID=', line: 'OMNI_ACCOUNT_UUID={{ omni_uuid.stdout }}' }
-        - { regexp: '^OMNI_DOMAIN_NAME=', line: 'OMNI_DOMAIN_NAME={{ omni_domain }}' }
-        - { regexp: '^ADVERTISED_API_URL=', line: 'ADVERTISED_API_URL=https://{{ omni_domain }}' }
-        - { regexp: '^SIDEROLINK_ADVERTISED_API_URL=', line: 'SIDEROLINK_ADVERTISED_API_URL=https://{{ omni_domain }}:8090/' }
-        - { regexp: '^ADVERTISED_K8S_PROXY_URL=', line: 'ADVERTISED_K8S_PROXY_URL=https://{{ omni_domain }}:8100/' }
-        - { regexp: '^SIDEROLINK_WIREGUARD_ADVERTISED_ADDR=', line: 'SIDEROLINK_WIREGUARD_ADVERTISED_ADDR={{ omni_domain }}:50180' }
-        - { regexp: '^INITIAL_USER_EMAILS=', line: 'INITIAL_USER_EMAILS={{ omni_admin_email }}' }
-        - { regexp: '^TLS_CERT=', line: 'TLS_CERT={{ tls_cert_path }}' }
-        - { regexp: '^TLS_KEY=', line: 'TLS_KEY={{ tls_key_path }}' }
-        - { regexp: '^ETCD_ENCRYPTION_KEY=', line: 'ETCD_ENCRYPTION_KEY={{ etcd_encryption_key }}' }
-        - { regexp: '^AUTH=', line: 'AUTH=--auth-basic-enabled=true' }
-
-    - name: Remove unused Auth0 variables from omni.env
-      ansible.builtin.lineinfile:
-        path: "{{ omni_env_file }}"
-        regexp: "^AUTH0_"
-        state: absent
-        create: yes
-
-    - name: Replace Auth0 flags with Basic Auth in compose.yaml
-      ansible.builtin.replace:
-        path: "{{ omni_compose_file }}"
-        regexp: '      --auth-auth0-enabled=true\n      --auth-auth0-domain=\\$\\{AUTH0_DOMAIN\\}\n      --auth-auth0-client-id=\\$\\{AUTH0_CLIENT_ID\\}'
-        replace: '      --auth-basic-enabled=true'
+    # --------------------------------------------------------
 
     - name: Deploy Omni stack via Docker Compose
       community.docker.docker_compose_v2:
