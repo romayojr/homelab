@@ -21,8 +21,7 @@
           - python3-docker
           - certbot
           - gpg
-          - util-linux
-          - curl
+          - util-linux  # Ensures uuidgen is available
         state: present
       when: ansible_os_family == "Debian"
 
@@ -46,7 +45,7 @@
     - name: Generate UUID for Omni account
       ansible.builtin.command: uuidgen
       register: omni_uuid
-      changed_when: false
+      # removed changed_when: false to ensure it runs and captures output
 
     - name: Generate GPG key for etcd encryption (no passphrase)
       ansible.builtin.command: >
@@ -77,15 +76,29 @@
       args:
         creates: "{{ etcd_encryption_key }}"
 
-    # --- DOWNLOAD SECTION ---
-    - name: Download Omni templates
-      ansible.builtin.shell: |
-        mkdir -p {{ omni_work_dir }}
-        curl -fsSL -o {{ omni_env_file }} https://raw.githubusercontent.com/siderolabs/omni/v{{ omni_version }}/deploy/env.template
-        curl -fsSL -o {{ omni_compose_file }} https://raw.githubusercontent.com/siderolabs/omni/v{{ omni_version }}/deploy/compose.yaml
-      args:
-        creates: "{{ omni_compose_file }}"
-    # -----------------------
+    # --- ROBUST DOWNLOAD SECTION ---
+    - name: Ensure Omni working directory exists
+      ansible.builtin.file:
+        path: "{{ omni_work_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Download Omni environment template
+      ansible.builtin.get_url:
+        url: "https://raw.githubusercontent.com/siderolabs/omni/v{{ omni_version }}/deploy/env.template"
+        dest: "{{ omni_env_file }}"
+        mode: '0644'
+        force: true
+        validate_certs: no
+
+    - name: Download Omni Docker Compose template
+      ansible.builtin.get_url:
+        url: "https://raw.githubusercontent.com/siderolabs/omni/v{{ omni_version }}/deploy/compose.yaml"
+        dest: "{{ omni_compose_file }}"
+        mode: '0644'
+        force: true
+        validate_certs: no
+    # ------------------------------
 
     - name: Configure omni.env with Basic Auth & local paths
       ansible.builtin.lineinfile:
@@ -93,7 +106,7 @@
         regexp: "{{ item.regexp }}"
         line: "{{ item.line }}"
         state: present
-        create: yes  # <--- KEY FIX: Creates file if missing
+        create: yes
       loop:
         - { regexp: '^OMNI_ACCOUNT_UUID=', line: 'OMNI_ACCOUNT_UUID={{ omni_uuid.stdout }}' }
         - { regexp: '^OMNI_DOMAIN_NAME=', line: 'OMNI_DOMAIN_NAME={{ omni_domain }}' }
@@ -112,7 +125,7 @@
         path: "{{ omni_env_file }}"
         regexp: "^AUTH0_"
         state: absent
-        create: yes  # <--- Also added here for safety
+        create: yes
 
     - name: Replace Auth0 flags with Basic Auth in compose.yaml
       ansible.builtin.replace:
