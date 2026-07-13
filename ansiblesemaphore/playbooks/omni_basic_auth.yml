@@ -4,8 +4,8 @@
   become: true
   vars:
     omni_version: "1.4.6"
-    omni_domain: "omni.romeobag.ai"
-    omni_admin_email: "romayojr+omni@gmail.com"
+    omni_domain: "your.domain.com"
+    omni_admin_email: "your@example.com"
     omni_work_dir: "/root/omni"
     omni_env_file: "{{ omni_work_dir }}/omni.env"
     omni_compose_file: "{{ omni_work_dir }}/compose.yaml"
