@@ -1,6 +1,6 @@
 ---
 - name: Automate Talos Omni On-Prem Installation (Basic Auth)
-  hosts: all 
+  hosts: all
   become: true
   vars:
     omni_version: "1.4.6"
@@ -10,6 +10,7 @@
     omni_env_file: "{{ omni_work_dir }}/omni.env"
     omni_compose_file: "{{ omni_work_dir }}/compose.yaml"
     
+    # Certbot places certs here by default
     tls_cert_path: "/etc/letsencrypt/live/{{ omni_domain }}/fullchain.pem"
     tls_key_path: "/etc/letsencrypt/live/{{ omni_domain }}/privkey.pem"
     etcd_encryption_key: "{{ omni_work_dir }}/omni.asc"
@@ -26,8 +27,8 @@
         name:
           - docker.io
           - docker-compose-plugin
-          - python3-docker  # ADDED: Required for docker_compose_v2 module
-          - certbot
+          - python3-docker      # Required for docker_compose_v2 module
+          - certbot            # Re-added for cert generation
           - python3-certbot-nginx
           - gpg
         state: present
@@ -39,6 +40,7 @@
         state: started
         enabled: true
 
+    # --- CERTIFICATE GENERATION ---
     - name: Generate Let's Encrypt certificates
       community.general.certbot:
         certbot: /usr/bin/certbot
@@ -48,6 +50,7 @@
         validate_certs: false
         auth: standalone
       register: cert_result
+    # ----------------------------
 
     - name: Generate UUID for Omni account
       ansible.builtin.command: uuidgen
@@ -76,7 +79,7 @@
       when: gpg_gen is changed
 
     - name: Export GPG secret key to omni.asc
-      ansible.builtin.shell: > # CHANGED: Must be 'shell' to support $(...) syntax
+      ansible.builtin.shell: >
         gpg --export-secret-keys --armor
         $(gpg --list-secret-keys --keyid-format LONG | grep sec -A1 | grep -oE '[A-F0-9]{40}')
         > {{ etcd_encryption_key }}
