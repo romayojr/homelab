@@ -179,4 +179,4 @@
         project_src: "{{ omni_work_dir }}"
         env_file: "{{ omni_env_file }}"
         state: present
-        build: false
+        build: 'never'  # <--- CHANGED: Must be string 'never' instead of boolean false
