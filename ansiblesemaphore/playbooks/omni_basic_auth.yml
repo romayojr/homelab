@@ -10,7 +10,6 @@
     omni_env_file: "{{ omni_work_dir }}/omni.env"
     omni_compose_file: "{{ omni_work_dir }}/compose.yaml"
     
-    # Certbot places certs here by default
     tls_cert_path: "/etc/letsencrypt/live/{{ omni_domain }}/fullchain.pem"
     tls_key_path: "/etc/letsencrypt/live/{{ omni_domain }}/privkey.pem"
     etcd_encryption_key: "{{ omni_work_dir }}/omni.asc"
@@ -25,9 +24,10 @@
     - name: Install required system packages (Docker excluded)
       ansible.builtin.package:
         name:
-          - python3-docker      # Required for docker_compose_v2 module
-          - certbot            # For cert generation
+          - python3-docker
+          - certbot
           - gpg
+          - util-linux # Added to ensure uuidgen is available
         state: present
       when: ansible_os_family == "Debian"
 
@@ -37,8 +37,6 @@
         state: started
         enabled: true
 
-    # --- CERTIFICATE GENERATION ---
-    # Replaced community.general.certbot (removed in v9+) with command module
     - name: Generate Let's Encrypt certificates
       ansible.builtin.command: >
         certbot certonly --standalone
@@ -47,10 +45,8 @@
         --non-interactive
         --domains {{ omni_domain }}
       args:
-        # This ensures the task is skipped if the cert already exists
         creates: /etc/letsencrypt/live/{{ omni_domain }}/fullchain.pem
       register: cert_result
-    # ----------------------------
 
     - name: Generate UUID for Omni account
       ansible.builtin.command: uuidgen
@@ -86,11 +82,19 @@
       args:
         creates: "{{ etcd_encryption_key }}"
 
+    # Defensive measure: Ensure directory exists immediately before download
+    - name: Ensure Omni working directory exists (Pre-download check)
+      ansible.builtin.file:
+        path: "{{ omni_work_dir }}"
+        state: directory
+        mode: '0755'
+
     - name: Download official Omni environment template
       ansible.builtin.get_url:
         url: "https://raw.githubusercontent.com/siderolabs/omni/v{{ omni_version }}/deploy/env.template"
         dest: "{{ omni_env_file }}"
         mode: '0644'
+        force: true
 
     - name: Configure omni.env with Basic Auth & local paths
       ansible.builtin.lineinfile:
@@ -122,6 +126,7 @@
         url: "https://raw.githubusercontent.com/siderolabs/omni/v{{ omni_version }}/deploy/compose.yaml"
         dest: "{{ omni_compose_file }}"
         mode: '0644'
+        force: true
 
     - name: Replace Auth0 flags with Basic Auth in compose.yaml
       ansible.builtin.replace:
