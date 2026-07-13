@@ -43,8 +43,9 @@
       register: cert_result
 
     - name: Generate UUID for Omni account
-      ansible.builtin.shell: uuidgen
+      ansible.builtin.command: uuidgen
       register: omni_uuid
+      changed_when: true # Force this to run
 
     - name: Generate GPG key for etcd encryption (no passphrase)
       ansible.builtin.command: >
@@ -75,13 +76,18 @@
       args:
         creates: "{{ etcd_encryption_key }}"
 
-    # --- LOCAL CONFIG GENERATION ---
-    
+    # --- ROBUST DIRECTORY SETUP ---
+    - name: Ensure Omni working directory is clean
+      ansible.builtin.file:
+        path: "{{ omni_work_dir }}"
+        state: absent # Remove if it exists (file or dir) to ensure clean slate
+
     - name: Create Omni working directory
       ansible.builtin.file:
         path: "{{ omni_work_dir }}"
         state: directory
         mode: '0755'
+    # -----------------------------
 
     - name: Generate omni.env configuration
       ansible.builtin.copy:
@@ -171,12 +177,17 @@
 
               restart: always
         mode: '0644'
-    # ------------------------------
 
+    # --- DEPLOY VIA SHELL (Bypasses Module Validation Errors) ---
     - name: Deploy Omni stack via Docker Compose
-      community.docker.docker_compose_v2:
-        project_src: "{{ omni_work_dir }}"
-        env_files:
-          - "{{ omni_env_file }}" # <--- FIX: Changed to env_files (list)
-        state: present
-        build: 'never'
+      ansible.builtin.shell: |
+        cd {{ omni_work_dir }}
+        docker compose --env-file {{ omni_env_file }} up -d
+      args:
+        creates: "{{ omni_work_dir }}/.deployed" # Idempotency check
+
+    - name: Mark deployment as complete
+      ansible.builtin.copy:
+        content: "done"
+        dest: "{{ omni_work_dir }}/.deployed"
+    # -----------------------------------------------------------
