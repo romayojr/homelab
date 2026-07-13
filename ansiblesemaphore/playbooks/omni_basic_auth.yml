@@ -1,6 +1,6 @@
 ---
 - name: Automate Talos Omni On-Prem Installation (Basic Auth)
-  hosts: all  # CHANGED: Targets all hosts in the inventory (including 'vms')
+  hosts: all 
   become: true
   vars:
     omni_version: "1.4.6"
