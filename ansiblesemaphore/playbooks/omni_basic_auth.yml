@@ -27,7 +27,8 @@
           - python3-docker
           - certbot
           - gpg
-          - util-linux # Added to ensure uuidgen is available
+          - util-linux
+          - curl # Added for downloading templates
         state: present
       when: ansible_os_family == "Debian"
 
@@ -90,11 +91,10 @@
         mode: '0755'
 
     - name: Download official Omni environment template
-      ansible.builtin.get_url:
-        url: "https://raw.githubusercontent.com/siderolabs/omni/v{{ omni_version }}/deploy/env.template"
-        dest: "{{ omni_env_file }}"
-        mode: '0644'
-        force: true
+      ansible.builtin.command:
+        cmd: "curl -o {{ omni_env_file }} https://raw.githubusercontent.com/siderolabs/omni/v{{ omni_version }}/deploy/env.template"
+      args:
+        creates: "{{ omni_env_file }}"
 
     - name: Configure omni.env with Basic Auth & local paths
       ansible.builtin.lineinfile:
@@ -122,11 +122,10 @@
         state: absent
 
     - name: Download official Docker Compose template
-      ansible.builtin.get_url:
-        url: "https://raw.githubusercontent.com/siderolabs/omni/v{{ omni_version }}/deploy/compose.yaml"
-        dest: "{{ omni_compose_file }}"
-        mode: '0644'
-        force: true
+      ansible.builtin.command:
+        cmd: "curl -o {{ omni_compose_file }} https://raw.githubusercontent.com/siderolabs/omni/v{{ omni_version }}/deploy/compose.yaml"
+      args:
+        creates: "{{ omni_compose_file }}"
 
     - name: Replace Auth0 flags with Basic Auth in compose.yaml
       ansible.builtin.replace:
