@@ -15,20 +15,14 @@
     etcd_encryption_key: "{{ omni_work_dir }}/omni.asc"
 
   tasks:
-    - name: Create working directory
-      ansible.builtin.file:
-        path: "{{ omni_work_dir }}"
-        state: directory
-        mode: '0755'
-
-    - name: Install required system packages (Docker excluded)
+    - name: Install required system packages
       ansible.builtin.package:
         name:
           - python3-docker
           - certbot
           - gpg
-          - util-linux
-          - curl # Added for downloading templates
+          - util-linux  # For uuidgen
+          - curl       # For downloading templates
         state: present
       when: ansible_os_family == "Debian"
 
@@ -83,18 +77,16 @@
       args:
         creates: "{{ etcd_encryption_key }}"
 
-    # Defensive measure: Ensure directory exists immediately before download
-    - name: Ensure Omni working directory exists (Pre-download check)
-      ansible.builtin.file:
-        path: "{{ omni_work_dir }}"
-        state: directory
-        mode: '0755'
-
-    - name: Download official Omni environment template
-      ansible.builtin.command:
-        cmd: "curl -o {{ omni_env_file }} https://raw.githubusercontent.com/siderolabs/omni/v{{ omni_version }}/deploy/env.template"
+    # --- ATOMIC DOWNLOAD TASK ---
+    # Combines directory creation and file downloads to avoid state issues
+    - name: Download Omni templates and create directory
+      ansible.builtin.shell: |
+        mkdir -p {{ omni_work_dir }}
+        curl -fsSL -o {{ omni_env_file }} https://raw.githubusercontent.com/siderolabs/omni/v{{ omni_version }}/deploy/env.template
+        curl -fsSL -o {{ omni_compose_file }} https://raw.githubusercontent.com/siderolabs/omni/v{{ omni_version }}/deploy/compose.yaml
       args:
-        creates: "{{ omni_env_file }}"
+        creates: "{{ omni_compose_file }}"
+    # ----------------------------
 
     - name: Configure omni.env with Basic Auth & local paths
       ansible.builtin.lineinfile:
@@ -120,12 +112,6 @@
         path: "{{ omni_env_file }}"
         regexp: "^AUTH0_"
         state: absent
-
-    - name: Download official Docker Compose template
-      ansible.builtin.command:
-        cmd: "curl -o {{ omni_compose_file }} https://raw.githubusercontent.com/siderolabs/omni/v{{ omni_version }}/deploy/compose.yaml"
-      args:
-        creates: "{{ omni_compose_file }}"
 
     - name: Replace Auth0 flags with Basic Auth in compose.yaml
       ansible.builtin.replace:
