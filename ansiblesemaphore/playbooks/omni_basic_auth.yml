@@ -22,19 +22,17 @@
         state: directory
         mode: '0755'
 
-    - name: Install required system packages
+    - name: Install required system packages (Docker excluded)
       ansible.builtin.package:
         name:
-          - docker.io
-          - docker-compose-plugin
           - python3-docker      # Required for docker_compose_v2 module
-          - certbot            # Re-added for cert generation
+          - certbot            # For cert generation
           - python3-certbot-nginx
           - gpg
         state: present
       when: ansible_os_family == "Debian"
 
-    - name: Start and enable Docker service
+    - name: Ensure Docker service is running
       ansible.builtin.service:
         name: docker
         state: started
