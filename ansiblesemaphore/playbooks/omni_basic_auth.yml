@@ -1,12 +1,14 @@
 ---
 - name: Automate Talos Omni On-Prem Installation (Basic Auth)
   hosts: all
-  become: true
+  become: true # Elevates to sudo for packages/service management, but works within romeo's context
   vars:
     omni_version: "1.4.6"
-    omni_domain: "your.domain.com"
-    omni_admin_email: "your@example.com"
-    omni_work_dir: "/root/omni"
+    omni_domain: "omni.romeobag.ai"
+    omni_admin_email: "romayojr+omni@gmail.com"
+    
+    # CRITICAL CHANGE: Using /home/romeo to guarantee write access and file persistence
+    omni_work_dir: "/home/romeo/omni"
     omni_env_file: "{{ omni_work_dir }}/omni.env"
     omni_compose_file: "{{ omni_work_dir }}/compose.yaml"
     
@@ -22,6 +24,7 @@
           - certbot
           - gpg
           - util-linux
+          - curl
         state: present
       when: ansible_os_family == "Debian"
 
@@ -40,12 +43,10 @@
         --domains {{ omni_domain }}
       args:
         creates: /etc/letsencrypt/live/{{ omni_domain }}/fullchain.pem
-      register: cert_result
 
     - name: Generate UUID for Omni account
       ansible.builtin.command: uuidgen
       register: omni_uuid
-      changed_when: true # Force this to run
 
     - name: Generate GPG key for etcd encryption (no passphrase)
       ansible.builtin.command: >
@@ -76,19 +77,15 @@
       args:
         creates: "{{ etcd_encryption_key }}"
 
-    # --- ROBUST DIRECTORY SETUP ---
-    - name: Ensure Omni working directory is clean
-      ansible.builtin.file:
-        path: "{{ omni_work_dir }}"
-        state: absent # Remove if it exists (file or dir) to ensure clean slate
-
-    - name: Create Omni working directory
+    # --- DIRECTORY SETUP (Ensures file creation is guaranteed) ---
+    - name: Ensure Omni working directory exists and is clean
       ansible.builtin.file:
         path: "{{ omni_work_dir }}"
         state: directory
         mode: '0755'
-    # -----------------------------
-
+        owner: romeo # Ensures the directory belongs to the user
+    
+    # --- LOCAL CONFIG GENERATION (Bypasses remote file module bugs) ---
     - name: Generate omni.env configuration
       ansible.builtin.copy:
         dest: "{{ omni_env_file }}"
@@ -128,6 +125,7 @@
           ## Authentication
           AUTH=--auth-basic-enabled=true
         mode: '0644'
+      notify: Remove deployment marker
 
     - name: Generate compose.yaml configuration
       ansible.builtin.copy:
@@ -150,7 +148,7 @@
 
               volumes:
                 - ${ETCD_VOLUME_PATH}:/_out/etcd
-                - /root/omni/sqlite:/_out/sqlite
+                - /home/romeo/omni/sqlite:/_out/sqlite
                 - ${ETCD_ENCRYPTION_KEY}:/omni.asc
                 - ${TLS_CERT}:/tls.crt
                 - ${TLS_KEY}:/tls.key
@@ -178,16 +176,21 @@
               restart: always
         mode: '0644'
 
-    # --- DEPLOY VIA SHELL (Bypasses Module Validation Errors) ---
+    # --- DEPLOY VIA SHELL (More reliable than docker_compose modules for persistent state) ---
     - name: Deploy Omni stack via Docker Compose
       ansible.builtin.shell: |
-        cd {{ omni_work_dir }}
-        docker compose --env-file {{ omni_env_file }} up -d
+        cd {{ omni_work_dir }} && docker compose --env-file {{ omni_env_file }} up -d
       args:
-        creates: "{{ omni_work_dir }}/.deployed" # Idempotency check
+        creates: "{{ omni_work_dir }}/.deployed" # Marker to prevent re-running on subsequent playbooks
 
-    - name: Mark deployment as complete
-      ansible.builtin.copy:
-        content: "done"
-        dest: "{{ omni_work_dir }}/.deployed"
-    # -----------------------------------------------------------
+    - name: Create deployment marker to confirm success
+      ansible.builtin.file:
+        path: "{{ omni_work_dir }}/.deployed"
+        state: touch
+        mode: '0644'
+
+  handlers:
+    - name: Remove deployment marker if new config is written
+      ansible.builtin.file:
+        path: "{{ omni_work_dir }}/.deployed"
+        state: absent
