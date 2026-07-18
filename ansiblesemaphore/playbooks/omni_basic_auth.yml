@@ -1,13 +1,14 @@
 ---
 - name: Automate Talos Omni On-Prem Installation (Basic Auth)
   hosts: all
-  become: true # Elevates to sudo for packages/service management, but works within romeo's context
+  become: true # Ensures permissions to write files and manage Docker
+  
   vars:
     omni_version: "1.4.6"
     omni_domain: "omni.romeobag.ai"
     omni_admin_email: "romayojr+omni@gmail.com"
     
-    # CRITICAL CHANGE: Using /home/romeo to guarantee write access and file persistence
+    # Using user's home directory as requested
     omni_work_dir: "/home/romeo/omni"
     omni_env_file: "{{ omni_work_dir }}/omni.env"
     omni_compose_file: "{{ omni_work_dir }}/compose.yaml"
@@ -20,13 +21,11 @@
     - name: Install required system packages
       ansible.builtin.package:
         name:
-          - python3-docker
-          - certbot
           - gpg
-          - util-linux
-          - curl
+          - uuid-runtime # For uuidgen
+          - python3-docker
         state: present
-      when: ansible_os_family == "Debian"
+      when: ansible_facts["os_family"] == "Debian"
 
     - name: Ensure Docker service is running
       ansible.builtin.service:
@@ -35,14 +34,13 @@
         enabled: true
 
     - name: Generate Let's Encrypt certificates
-      ansible.builtin.command: >
-        certbot certonly --standalone
-        --agree-tos
-        --email {{ omni_admin_email }}
-        --non-interactive
-        --domains {{ omni_domain }}
-      args:
-        creates: /etc/letsencrypt/live/{{ omni_domain }}/fullchain.pem
+      community.general.certbot:
+        certbot: /usr/bin/certbot
+        cert_name: "{{ omni_domain }}"
+        email: "{{ omni_admin_email }}"
+        agree_terms: true
+        validate_certs: false
+        auth: standalone
 
     - name: Generate UUID for Omni account
       ansible.builtin.command: uuidgen
@@ -77,15 +75,14 @@
       args:
         creates: "{{ etcd_encryption_key }}"
 
-    # --- DIRECTORY SETUP (Ensures file creation is guaranteed) ---
-    - name: Ensure Omni working directory exists and is clean
+    # --- Directory & File Generation (Using 'copy' to avoid remote file download bugs) ---
+
+    - name: Ensure Omni working directory exists
       ansible.builtin.file:
         path: "{{ omni_work_dir }}"
         state: directory
         mode: '0755'
-        owner: romeo # Ensures the directory belongs to the user
-    
-    # --- LOCAL CONFIG GENERATION (Bypasses remote file module bugs) ---
+
     - name: Generate omni.env configuration
       ansible.builtin.copy:
         dest: "{{ omni_env_file }}"
@@ -96,9 +93,6 @@
           NAME=omni
           EVENT_SINK_PORT=8091
 
-          # =========================
-          # Storage (Required in 1.4.x)
-          # =========================
           SQLITE_STORAGE_PATH=/_out/sqlite/omni.sqlite.db
 
           ## Keys and Certs
@@ -132,27 +126,21 @@
         dest: "{{ omni_compose_file }}"
         content: |
           name: omni-on-prem
-
           services:
             omni:
               container_name: omni
               image: ghcr.io/siderolabs/omni:${OMNI_IMG_TAG}
-
               network_mode: host
-
               devices:
                 - /dev/net/tun
-
               cap_add:
                 - NET_ADMIN
-
               volumes:
                 - ${ETCD_VOLUME_PATH}:/_out/etcd
-                - /home/romeo/omni/sqlite:/_out/sqlite
+                - {{ omni_work_dir }}/sqlite:/_out/sqlite
                 - ${ETCD_ENCRYPTION_KEY}:/omni.asc
                 - ${TLS_CERT}:/tls.crt
                 - ${TLS_KEY}:/tls.key
-
               command: >
                 --account-id=${OMNI_ACCOUNT_UUID}
                 --name=${NAME}
@@ -172,24 +160,18 @@
                 --siderolink-wireguard-advertised-addr=${SIDEROLINK_WIREGUARD_ADVERTISED_ADDR}
                 --initial-users=${INITIAL_USER_EMAILS}
                 --auth-basic-enabled=true
-
               restart: always
-        mode: '0644'
 
-    # --- DEPLOY VIA SHELL (More reliable than docker_compose modules for persistent state) ---
+    # --- Deployment via Shell (More reliable across Ansible versions) ---
+    
     - name: Deploy Omni stack via Docker Compose
       ansible.builtin.shell: |
         cd {{ omni_work_dir }} && docker compose --env-file {{ omni_env_file }} up -d
       args:
-        creates: "{{ omni_work_dir }}/.deployed" # Marker to prevent re-running on subsequent playbooks
-
-    - name: Create deployment marker to confirm success
-      ansible.builtin.file:
-        path: "{{ omni_work_dir }}/.deployed"
-        state: touch
-        mode: '0644'
+        creates: "{{ omni_work_dir }}/.deployed"
 
   handlers:
+    # This block defines the cleaning task that was previously missing!
     - name: Remove deployment marker if new config is written
       ansible.builtin.file:
         path: "{{ omni_work_dir }}/.deployed"
