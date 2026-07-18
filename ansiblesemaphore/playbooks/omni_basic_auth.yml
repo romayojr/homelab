@@ -1,79 +1,73 @@
 ---
 - name: Automate Talos Omni On-Prem Installation (Offline/Nebird Mode)
   hosts: all
-  become: true
+  become: true # Requires Sudo Credentials in your Semaphore template
   vars:
     omni_version: "1.4.6"
     omni_domain: "omni.romeobag.ai"
     omni_admin_email: "romayojr+omni@gmail.com"
     
-    # Using /home/romeo to ensure user visibility and file persistence
+    # Using /home/romeo to ensure file persistence and user visibility
     omni_work_dir: "/home/romeo/omni"
     omni_env_file: "{{ omni_work_dir }}/omni.env"
     omni_compose_file: "{{ omni_work_dir }}/compose.yaml"
 
   tasks:
-    - name: Install openssl for local cert generation
+    # --- 1. Package & Directory Setup (Offline) ---
+    
+    - name: Install necessary packages
       ansible.builtin.package:
-        name: 
-          - openssl
-         state: present
+        name: [openssl] 
+        state: present 
 
     - name: Create Omni working directory and clean previous artifacts
       ansible.builtin.file:
-        path: "{{ item }}"
+        path: "{{ omni_work_dir }}"
         state: absent
-      loop:
-        - "{{ omni_work_dir }}"
-    
-    - name: Create Omni working directory
+
+    - name: Ensure Omni working directory exists
       ansible.builtin.file:
         path: "{{ omni_work_dir }}"
         state: directory
         mode: '0755'
+        owner: romeo # Ensures the user owns the config files
 
-    # --- Offline Self-Signed Certs (Guaranteed file creation) ---
-    - name: Generate self-signed certs for internal use
+    # --- 2. Config Generation (Guaranteed to write to disk) ---
+
+    - name: Generate Offline Self-Signed Certificates
       ansible.builtin.shell: |
         openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
           -keyout {{ omni_work_dir }}/priv.key \
           -out {{ omni_work_dir }}/fullchain.pem \
-          -subj "/CN={{ omni_domain }}/O=OmniLocal"
+          -subj "/CN={{ omni_domain }}/O=OmniOnPrem"
       args:
         creates: "{{ omni_work_dir }}/priv.key"
 
-    # --- Config Generation ---
-    - name: Generate omni.env configuration
+    - name: Write omni.env configuration
       ansible.builtin.copy:
         dest: "{{ omni_env_file }}"
         content: |
-          # Omni Core Config
           OMNI_IMG_TAG={{ omni_version }}
           NAME=omni-on-prem
           
-          # Storage
           SQLITE_STORAGE_PATH=/_out/sqlite/omni.sqlite.db
-          
-          # Keys and Certs (Using internal self-signed)
-          TLS_CERT=/tls.crt
-          TLS_KEY=/tls.key
           ETCD_VOLUME_PATH=/var/lib/etcd
           ETCD_ENCRYPTION_KEY=/dev/null
           
-          # Binding (Standard Omni ports)
+          TLS_CERT=/tls.crt
+          TLS_KEY=/tls.key
+          
           BIND_ADDR=0.0.0.0:8091
           MACHINE_API_BIND_ADDR=0.0.0.0:8090
           
-          # NetBird Reverse Proxy Headers
           PROBE_URL=http://localhost/healthz
           ENABLE_PROBER=true
-
-          # Users and Auth (Basic is fine since NetBird handles SSL)
+          
           INITIAL_USER_EMAILS={{ omni_admin_email }}
           AUTH=--auth-basic-enabled=true
         mode: '0644'
 
-    - name: Generate compose.yaml configuration
+    - name: Write compose.yaml configuration
       ansible.builtin.copy:
         dest: "{{ omni_compose_file }}"
         content: |
@@ -82,37 +76,10 @@
           services:
             omni:
               image: ghcr.io/siderolabs/omni:${OMNI_IMG_TAG}
-              network_mode: host # Allows direct port access for NetBird
+              network_mode: host
               
               volumes:
                 - /home/romeo/omni/data:/var/lib/etcd
                 - /home/romeo/omni/sqlite:/_out/sqlite
-                - /home/romeo/omni/fullchain.pem:/tls.crt
-                - /home/romeo/omni/priv.key:/tls.key
-
-              command: >
-                --name=${NAME}
-                --config=/etc/omni/env
-                --advertised-api-url=https://{{ omni_domain }}
-                --sqlite-storage-path=${SQLITE_STORAGE_PATH}
-                --cert=${TLS_CERT}
-                --key=${TLS_KEY}
-                --machine-api-bind-addr=${MACHINE_API_BIND_ADDR}
-                --bind-addr=${BIND_ADDR}
-                --initial-users=${INITIAL_USER_EMAILS}
-                --auth-basic-enabled=true
-
-              restart: always
-        mode: '0644'
-
-    # --- Deployment ---
-    - name: Start Omni container via Docker Compose
-      ansible.builtin.shell: |
-        cd {{ omni_work_dir }} && docker compose up -d
-      args:
-        creates: "{{ omni_work_dir }}/docker-compose.yml" 
-
-    - name: Create deployment marker
-      ansible.builtin.file:
-        path: "{{ omni_work_dir }}/.deployed"
-        state: touch
+                - {{ omni_work_dir }}/fullchain.pem:/tls.crt
+                - {{ omni_work_dir }}/priv
