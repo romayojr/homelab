@@ -1,0 +1,73 @@
+---
+- name: Install Docker Engine and Docker Compose on Debian
+  hosts: all
+  become: true
+  vars:
+    # Optional: Specify the Debian version codename explicitly if autodetection fails
+    # debian_codename: "bookworm" 
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install required packages
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release  # Helps determine the Debian codename
+        state: present
+
+    - name: Create directory for Docker GPG key
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Add Docker GPG key for Debian
+      shell: |
+        curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg --yes
+
+    - name: Set permissions for Docker GPG key
+      file:
+        path: /etc/apt/keyrings/docker.gpg
+        mode: '0644'
+
+    - name: Get Debian codename
+      shell: "lsb_release -cs"
+      register: debian_codename_result
+      changed_when: false
+
+    - name: Add Docker repository for Debian
+      shell: |
+        echo \
+          "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+          "{{ debian_codename_result.stdout }}" stable" | \
+          tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    - name: Update apt cache again after adding repository
+      apt:
+        update_cache: yes
+
+    - name: Install Docker Engine and Compose
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+
+    # Optional: Start and enable Docker service
+    - name: Start Docker service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    # Add the current user to the docker group (adjust if needed for your setup)
+    - name: Add sudo user to docker group
+      shell: "usermod -aG docker {{ ansible_env.SUDO_USER }}"
+      when: ansible_env.SUDO_USER is defined
