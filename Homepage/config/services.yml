@@ -31,8 +31,8 @@
             type: grafana
             ping: IP
             url: https://FQDN.domain.com
-            username: Username
-            password: Password                               
+            username: ''
+            password: ''                             
 
 - Media:
     - Plex:

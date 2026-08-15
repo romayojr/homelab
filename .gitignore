@@ -1,0 +1,8 @@
+
+.env
+*.pid
+kubeconfig
+*.key
+*.pem
+.dockercfg
+!/.gitkeep

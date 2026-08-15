@@ -8,7 +8,7 @@
     hawser_container_name: "hawser"
     hawser_container_image: "ghcr.io/finsys/hawser:latest"
     hawser_port: 2376
-    hawser_token: "Tarnish-Turbojet-Pod2"
+    hawser_token: "YOUR-TOKEN-HERE"
     hawser_restart_policy: "unless-stopped"
 
   tasks:

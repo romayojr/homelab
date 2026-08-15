@@ -41,7 +41,7 @@ fservices:
     # Change password below, of course!
     environment:
       - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=celibacy-ambiguity-nearby-laborer-gradation # CHANGE ME!
+      - POSTGRES_PASSWORD=your-password-here # CHANGE ME!
       - POSTGRES_DB=synapse
       # ensure the database gets created correctly
       # https://github.com/matrix-org/synapse/blob/master/docs/postgres.md#set-up-database

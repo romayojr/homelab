@@ -1,0 +1,85 @@
+---
+- name: Automate Talos Omni On-Prem Installation (Offline/Nebird Mode)
+  hosts: all
+  become: true # Requires Sudo Credentials in your Semaphore template
+  vars:
+    omni_version: "1.4.6"
+    omni_domain: "omni.romeobag.ai"
+    omni_admin_email: "romayojr+omni@gmail.com"
+    
+    # Using /home/romeo to ensure file persistence and user visibility
+    omni_work_dir: "/home/romeo/omni"
+    omni_env_file: "{{ omni_work_dir }}/omni.env"
+    omni_compose_file: "{{ omni_work_dir }}/compose.yaml"
+
+  tasks:
+    # --- 1. Package & Directory Setup (Offline) ---
+    
+    - name: Install necessary packages
+      ansible.builtin.package:
+        name: [openssl] 
+        state: present 
+
+    - name: Create Omni working directory and clean previous artifacts
+      ansible.builtin.file:
+        path: "{{ omni_work_dir }}"
+        state: absent
+
+    - name: Ensure Omni working directory exists
+      ansible.builtin.file:
+        path: "{{ omni_work_dir }}"
+        state: directory
+        mode: '0755'
+        owner: romeo # Ensures the user owns the config files
+
+    # --- 2. Config Generation (Guaranteed to write to disk) ---
+
+    - name: Generate Offline Self-Signed Certificates
+      ansible.builtin.shell: |
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+          -keyout {{ omni_work_dir }}/priv.key \
+          -out {{ omni_work_dir }}/fullchain.pem \
+          -subj "/CN={{ omni_domain }}/O=OmniOnPrem"
+      args:
+        creates: "{{ omni_work_dir }}/priv.key"
+
+    - name: Write omni.env configuration
+      ansible.builtin.copy:
+        dest: "{{ omni_env_file }}"
+        content: |
+          OMNI_IMG_TAG={{ omni_version }}
+          NAME=omni-on-prem
+          
+          SQLITE_STORAGE_PATH=/_out/sqlite/omni.sqlite.db
+          ETCD_VOLUME_PATH=/var/lib/etcd
+          ETCD_ENCRYPTION_KEY=/dev/null
+          
+          TLS_CERT=/tls.crt
+          TLS_KEY=/tls.key
+          
+          BIND_ADDR=0.0.0.0:8091
+          MACHINE_API_BIND_ADDR=0.0.0.0:8090
+          
+          PROBE_URL=http://localhost/healthz
+          ENABLE_PROBER=true
+          
+          INITIAL_USER_EMAILS={{ omni_admin_email }}
+          AUTH=--auth-basic-enabled=true
+        mode: '0644'
+
+    - name: Write compose.yaml configuration
+      ansible.builtin.copy:
+        dest: "{{ omni_compose_file }}"
+        content: |
+          name: omni-on-prem
+          
+          services:
+            omni:
+              image: ghcr.io/siderolabs/omni:${OMNI_IMG_TAG}
+              network_mode: host
+              
+              volumes:
+                - /home/romeo/omni/data:/var/lib/etcd
+                - /home/romeo/omni/sqlite:/_out/sqlite
+                - {{ omni_work_dir }}/fullchain.pem:/tls.crt
+                - {{ omni_work_dir }}/priv
