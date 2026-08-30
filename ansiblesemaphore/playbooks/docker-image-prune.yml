@@ -1,13 +1,13 @@
 - name: Clean Docker Images
   hosts: "*"
-  become: yes
+  become: true
   become_method: sudo
   tasks:
     - name: Prune all unused Docker images
       command: docker image prune -a -f
       register: prune_output
-      ignore_errors: yes
-        
+      ignore_errors: true
+
     - name: Show prune command result
       debug:
         msg: |
