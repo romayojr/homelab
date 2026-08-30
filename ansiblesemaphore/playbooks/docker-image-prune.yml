@@ -1,22 +1,22 @@
 ---
 # disk_cleanup.yml
 # General Linux disk reclamation — works across major distros.
-# Auto-detects the package manager (apt / dnf / yum / pacman) via facts.
+# Auto-detects the package manager (apt / dnf / yum / pacman) via ansible_os_family.
 #
-#   ansible-playbook -i inventory disk_cleanup.yml              # run on all hosts
-#   ansible-playbook -i inventory disk_cleanup.yml -l host1     # one host
-#   ansible-playbook -i inventory disk_cleanup.yml --check      # no destructive commands
-#   ansible-playbook -i inventory disk_cleanup.yml --tags docker
+#   ansible-playbook -i inventory disk_cleanup.yml                    # run on all hosts
+#   ansible-playbook -i inventory disk_cleanup.yml -l <host>          # one host
+#   ansible-playbook -i inventory disk_cleanup.yml --check            # dry run
+#   ansible-playbook -i inventory disk_cleanup.yml --tags docker      # docker parts only
 #   ansible-playbook -i inventory disk_cleanup.yml -e prune_docker_volumes=true
 
 - name: Reclaim disk space (general Linux)
   hosts: all
   become: true
-  gather_facts: true   # needed for ansible_os_family / ansible_fqdn
+  gather_facts: true   # needed for ansible_os_family / ansible_date_time
 
   vars:
     cleanup_target: "/"                 # filesystem to report on
-    journal_vacuum_size: "100M"         # journald cap (e.g. 100M, 3d)
+    journal_vacuum_size: "100M"         # journald cap
     prune_all_images: true              # docker image prune -a
     prune_docker_volumes: false         # keep OFF on production
     containerd_prune: false             # opt-in; only if you use containerd directly
@@ -27,62 +27,54 @@
 
   tasks:
     # ---------- detect package manager ----------
-    - name: Set package manager vars by distro family
+    - name: Detect package manager from distro family
       ansible.builtin.set_fact:
-        pkg_manager: "{{ lookup('ansible.builtin.first_true', pkg_candidates, wantlist=true) | first | default('none') }}"
-      vars:
-        pkg_candidates:
-          - "{{ 'apt' if ansible_os_family == 'Debian' }}"
-          - "{{ 'dnf' if ansible_os_family in ['RedHat', 'Fedora'] }}"
-          - "{{ 'pacman' if ansible_os_family == 'Arch' }}"
+        package_module: "{{ item.1 }}"
+      loop:
+        - [ "{{ ansible_os_family == 'Debian' }}", "apt" ]
+        - [ "{{ ansible_os_family in ['RedHat', 'Fedora'] }}", "dnf" ]
+        - [ "{{ ansible_os_family == 'Arch' }}", "pacman" ]
+      when: item.0
+      loop_control:
+        label: item.1
 
     # ---------- report: BEFORE ----------
     - name: Record disk usage before
-      ansible.builtin.command: df -h {{ cleanup_target }}
+      ansible.builtin.command: "df -h {{ cleanup_target }}"
       register: df_before
       changed_when: false
 
     - name: Show disk usage before
       ansible.builtin.debug:
-        msg: "{{ ansible_fqdn }} — BEFORE\n{{ df_before.stdout }}"
+        msg: "{{ inventory_hostname }} — BEFORE\n{{ df_before.stdout }}"
 
-    # ---------- APT (Debian/Ubuntu) ----------
-    - name: APT — autoremove and clear cache
+    # ---------- package manager ----------
+    - name: APT — autoremove, purge, clean cache
       ansible.builtin.apt:
         autoremove: true
         purge: true
         clean: true
-      when: pkg_manager == 'apt'
+      when: package_module == 'apt'
       tags: [system]
 
-    # ---------- DNF (RHEL/Fedora/Rocky/Alma) ----------
     - name: DNF — autoremove and clean cache
       ansible.builtin.dnf:
         autoremove: true
         clean: metadata
-      when: pkg_manager == 'dnf'
+      when: package_module == 'dnf'
       tags: [system]
 
-    # ---------- YUM (legacy RHEL) ----------
-    - name: YUM — autoremove and clean cache
-      ansible.builtin.yum:
-        autoremove: true
-        clean: all
-      when: pkg_manager == 'yum'
-      tags: [system]
-
-    # ---------- Pacman (Arch) ----------
-    - name: Pacman — remove orphans and clean cache
+    - name: Pacman — remove orphaned packages
       community.general.pacman:
-        pkgs: cleanup
-        extra_args: --nodeconfirm
-      when: pkg_manager == 'pacman'
+        cleanup: true
+      when: package_module == 'pacman'
       tags: [system]
 
     - name: Pacman — clean package cache
-      ansible.builtin.command: "rm -rf /var/cache/pacman/pkg/*"
-      when: pkg_manager == 'pacman'
-      changed_when: true
+      ansible.builtin.file:
+        path: /var/cache/pacman/pkg
+        state: absent
+      when: package_module == 'pacman'
       tags: [system]
 
     # ---------- systemd-journald ----------
@@ -92,7 +84,7 @@
       changed_when: false
       tags: [system]
 
-    # ---------- Docker images ----------
+    # ---------- Docker ----------
     - name: Check if docker is installed
       ansible.builtin.command: docker --version
       register: docker_check
@@ -100,10 +92,8 @@
       changed_when: false
 
     - name: Prune unused Docker images
-      ansible.builtin.command: >
-        docker image prune
-        {{ '-a' if prune_all_images }}
-        -f
+      ansible.builtin.command: >-
+        docker image prune {{ '-a' if prune_all_images }} -f
       when: docker_check.rc == 0
       register: docker_img_prune
       failed_when: false
@@ -112,31 +102,15 @@
         and 'Total reclaimed space: 0B' not in docker_img_prune.stdout
       tags: [docker]
 
-    - name: Show Docker image prune result
-      ansible.builtin.debug:
-        msg: |
-          rc={{ docker_img_prune.rc }}
-          {{ docker_img_prune.stdout | default('') }}
-          {% if docker_img_prune.stderr | trim %}stderr: {{ docker_img_prune.stderr }}{% endif %}
-      tags: [docker]
-
-    # ---------- Docker system ----------
-    - name: Prune stopped containers, networks, and build cache
-      ansible.builtin.command: >
-        docker system prune -f
-        {{ ' --volumes' if prune_docker_volumes }}
+    - name: Prune stopped Docker containers, networks, and build cache
+      ansible.builtin.command: >-
+        docker system prune -f {{ ' --volumes' if prune_docker_volumes }}
       when: docker_check.rc == 0
       register: docker_sys_prune
       failed_when: false
       changed_when: >-
         docker_sys_prune.rc == 0
         and (docker_sys_prune.stdout | default('') | length > 0)
-      tags: [docker]
-
-    - name: Show Docker system prune result
-      ansible.builtin.debug:
-        msg: "{{ docker_sys_prune.stdout | default('(no changes)') }}"
-      when: docker_check.rc == 0
       tags: [docker]
 
     # ---------- containerd (opt-in) ----------
@@ -160,32 +134,29 @@
 
     # ---------- report: AFTER + summary ----------
     - name: Record disk usage after
-      ansible.builtin.command: df -h {{ cleanup_target }}
+      ansible.builtin.command: "df -h {{ cleanup_target }}"
       register: df_after
       changed_when: false
 
-    - name: Cleanup summary
+    - name: Show cleanup summary
       ansible.builtin.debug:
         msg:
-          - "Docker image prune : {{ docker_img_prune.stdout | default('n/a') | trim }}"
+          - "Docker image prune : {{ docker_img_prune.stdout | default('(no docker)') | trim }}"
           - "Docker system prune: {{ docker_sys_prune.stdout_lines | default([]) | join(' | ') | trim }}"
           - "containerd prune   : {{ 'rc=' ~ containerd_prune_result.rc if containerd_prune else 'skipped' }}"
+          - "journald vacuum    : rc={{ journal_vacuum.rc }}"
           - ""
           - "BEFORE\n{{ df_before.stdout }}"
           - "AFTER\n{{ df_after.stdout }}"
 
-    # ---------- persist log ----------
     - name: Append summary to log file
-      ansible.builtin.blockinfile:
-        path: "{{ cleanup_log }}"
-        create: true
-        mode: "0644"
-        marker: ""
-        insertafter: EOF
-        text: |
-          ==== {{ ansible_fqdn }} @ {{ ansible_date_time.iso8601 }} ====
-          BEFORE: {{ df_before.stdout_lines | last | join(' ') }}
-          AFTER:  {{ df_after.stdout_lines | last | join(' ') }}
-          docker_img_prune: {{ docker_img_prune.stdout | default('') | trim }}
-          docker_sys_prune: {{ docker_sys_prune.stdout | default('') | trim }}
-      tags: [always]
+      ansible.builtin.command: >-
+        sh -c
+        'printf "==== %s @ %s ====\nBEFORE: %s\nAFTER:  %s\ndocker_img: %s\ndocker_sys: %s\n\n"
+        "{{ inventory_hostname }}" "{{ ansible_date_time.iso8601 }}"
+        "{{ df_before.stdout_lines[-1] }}" "{{ df_after.stdout_lines[-1] }}"
+        "{{ docker_img_prune.stdout | default('') }}"
+        "{{ docker_sys_prune.stdout | default('') }}"
+        >> {{ cleanup_log }}'
+      when: not ansible_check_mode
+      changed_when: false
