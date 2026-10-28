@@ -1,0 +1,33 @@
+---
+# One-time bootstrap, run from Ansible Semaphore (it already holds working
+# credentials for every host). After this playbook runs once, the GitLab CI
+# pipelines connect as the dedicated 'ci' user defined in inventory and this
+# key becomes the only standing SSH identity for automation.
+#
+# Run: ansible-playbook playbooks/bootstrap-ci-user.yml
+- name: Bootstrap GitLab CI deploy user on all inventory hosts
+  hosts: all
+  become: true
+
+  vars:
+    ci_pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBMkpMnONoAwIJ7tSrB5Pz8GS+G9FgmMYBrtEx8u5zIA gitlab-ci-proxmox-inventory"
+
+  tasks:
+    - name: Create ci user
+      ansible.builtin.user:
+        name: ci
+        shell: /bin/bash
+        create_home: yes
+
+    - name: Install CI deploy public key
+      ansible.builtin.authorized_key:
+        user: ci
+        state: present
+        key: "{{ ci_pubkey }}"
+
+    - name: Grant ci passwordless sudo
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/ci
+        content: "ci ALL=(ALL) NOPASSWD:ALL\n"
+        mode: "0440"
+        validate: "visudo -cf %s"
