@@ -17,4 +17,4 @@
       ansible.builtin.user:
         name: ci
         state: absent
-        remove_home: yes
+        remove: yes
