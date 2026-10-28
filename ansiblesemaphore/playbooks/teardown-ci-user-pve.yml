@@ -1,0 +1,20 @@
+---
+# One-time teardown: the bootstrap run of 2026-10-27 also created the 'ci' user
+# on the four PVE hypervisor hosts, which are NOT in the GitLab CI fleet.
+# Remove that access there. Run ONLY limited to the pve* group:
+#   ansible-playbook playbooks/teardown-ci-user-pve.yml --limit pve01.local,pve02.local,pve03.local,pve04.local
+- name: Remove ci user from PVE hosts (out of CI fleet scope)
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Remove sudoers drop-in
+      ansible.builtin.file:
+        path: /etc/sudoers.d/ci
+        state: absent
+
+    - name: Remove ci user
+      ansible.builtin.user:
+        name: ci
+        state: absent
+        remove_home: yes
