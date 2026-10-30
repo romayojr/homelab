@@ -1,0 +1,73 @@
+---
+# One-shot: deploy the WuTang homelab docs map (GitLab proj 11,
+# romeo/homelab-architecture-diagrams) on this host (SportsDashboards LXC,
+# 10.0.0.59) with docker compose on port 3245. Run against the pinned
+# one-shot inventory (single host), never a shared inventory.
+# Token provenance: reuses the existing authenticated go-hawks remote URL
+# on this host — no new secret is stored anywhere.
+- name: deploy-chimera-docs
+  hosts: all
+  become: true
+  vars:
+    chimera_dir: /opt/chimera-docs
+  tasks:
+    - name: Read existing authenticated GitLab remote (token source)
+      ansible.builtin.command: git -C /root/go-hawks config remote.origin.url
+      register: gl_remote
+      changed_when: false
+      no_log: true
+
+    - name: Build clone URL for the docs repo
+      ansible.builtin.set_fact:
+        chimera_clone: "{{ gl_remote.stdout | regex_replace('romeo/go-hawks(\\.git)?$', 'romeo/homelab-architecture-diagrams.git') }}"
+      no_log: true
+
+    - name: Clone docs repo
+      ansible.builtin.git:
+        repo: "{{ chimera_clone }}"
+        dest: "{{ chimera_dir }}"
+        version: main
+        force: true
+      no_log: true
+
+    - name: Assemble served site (git files + CI render artifacts, fail-closed)
+      ansible.builtin.command: bash "{{ chimera_dir }}/deploy/sync.sh"
+      register: site_sync
+      changed_when: true
+
+    - name: Detect docker compose v2
+      ansible.builtin.command: docker compose version
+      register: compose_v2
+      changed_when: false
+      failed_when: false
+
+    - name: Start nginx container (port 3245)
+      ansible.builtin.command: >-
+        {{ 'docker compose' if compose_v2.rc == 0 else 'docker-compose' }}
+        -f deploy/docker-compose.yml up -d
+      args:
+        chdir: "{{ chimera_dir }}"
+
+    - name: Keep the site fresh (pull main + artifacts every 30 min)
+      ansible.builtin.cron:
+        name: chimera-docs-sync
+        minute: "*/30"
+        job: "bash {{ chimera_dir }}/deploy/sync.sh >> {{ chimera_dir }}/sync.log 2>&1"
+
+    - name: Wait for the interactive map
+      ansible.builtin.uri:
+        url: http://127.0.0.1:3245/
+        status_code: 200
+      register: probe
+      retries: 15
+      delay: 2
+      until: probe.status == 200
+
+    - name: Architecture artifacts are served
+      ansible.builtin.uri:
+        url: http://127.0.0.1:3245/architecture/diagram.svg
+        status: 200
+
+    - name: Sync output
+      ansible.builtin.debug:
+        var: site_sync.stdout_lines
