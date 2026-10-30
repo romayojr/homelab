@@ -11,8 +11,21 @@
   vars:
     chimera_dir: /opt/chimera-docs
   tasks:
+    - name: Locate the go-hawks clone (credential source on this host)
+      ansible.builtin.shell: >
+        for d in /root/go-hawks /root/GoHawks /home/*/go-hawks /home/*/GoHawks; do
+          [ -d "$d/.git" ] && { echo "$d"; break; };
+        done
+      register: gohawks_dir
+      changed_when: false
+
+    - name: Require an existing authenticated GitLab clone
+      ansible.builtin.assert:
+        that: gohawks_dir.stdout | trim | length > 0
+        fail_msg: "no go-hawks clone found under /root or /home/* to reuse credentials from"
+
     - name: Read existing authenticated GitLab remote (token source)
-      ansible.builtin.command: git -C /root/go-hawks config remote.origin.url
+      ansible.builtin.command: git -C "{{ gohawks_dir.stdout | trim }}" config remote.origin.url
       register: gl_remote
       changed_when: false
       no_log: true
