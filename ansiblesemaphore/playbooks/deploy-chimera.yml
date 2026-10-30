@@ -71,7 +71,7 @@
     - name: Architecture artifacts are served
       ansible.builtin.uri:
         url: http://127.0.0.1:3245/architecture/diagram.svg
-        status: 200
+        status_code: 200
 
     - name: Sync output
       ansible.builtin.debug:
