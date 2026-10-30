@@ -10,41 +10,33 @@
   become: true
   vars:
     chimera_dir: /opt/chimera-docs
+    expected_token_sha256: 98119c11d7a1bede901a422244a83d353687d9ee72f1b35604be3bd030eb8c3c
   tasks:
-    - name: Locate the go-hawks clone (credential source on this host)
-      ansible.builtin.shell: >
-        for d in /root/go-hawks /root/GoHawks /home/*/go-hawks /home/*/GoHawks; do
-          [ -d "$d/.git" ] && { echo "$d"; break; };
-        done
-      register: gohawks_dir
+    - name: Verify GITLAB_TOKEN arrived intact from the Semaphore environment
+      ansible.builtin.shell: printf %s "{{ GITLAB_TOKEN }}" | sha256sum | cut -d' ' -f1
+      register: tok_hash
       changed_when: false
+      no_log: true
 
-    - name: Require an existing authenticated GitLab clone
+    - name: Assert token integrity
       ansible.builtin.assert:
-        that: gohawks_dir.stdout | trim | length > 0
-        fail_msg: "no go-hawks clone found under /root or /home/* to reuse credentials from"
+        that: tok_hash.stdout == expected_token_sha256
+        fail_msg: "GITLAB_TOKEN mismatch (got sha {{ tok_hash.stdout[0:12] }}..., expected {{ expected_token_sha256[0:12] }}...)"
 
-    - name: Read existing authenticated GitLab remote (token source)
-      ansible.builtin.command: git -C "{{ gohawks_dir.stdout | trim }}" config remote.origin.url
-      register: gl_remote
-      changed_when: false
-      no_log: true
-
-    - name: Build clone URL for the docs repo
-      ansible.builtin.set_fact:
-        chimera_clone: "{{ gl_remote.stdout | regex_replace('romeo/go-hawks(\\.git)?$', 'romeo/homelab-architecture-diagrams.git') }}"
-      no_log: true
-
-    - name: Clone docs repo
+    - name: Clone docs repo (authenticated)
       ansible.builtin.git:
-        repo: "{{ chimera_clone }}"
+        repo: "https://oauth2:{{ GITLAB_TOKEN }}@gitlab.romeobagay.com/romeo/homelab-architecture-diagrams.git"
         dest: "{{ chimera_dir }}"
         version: main
         force: true
+      environment:
+        GIT_TERMINAL_PROMPT: "0"
       no_log: true
 
     - name: Assemble served site (git files + CI render artifacts, fail-closed)
       ansible.builtin.command: bash "{{ chimera_dir }}/deploy/sync.sh"
+      environment:
+        GITLAB_TOKEN: "{{ GITLAB_TOKEN }}"
       register: site_sync
       changed_when: true
 
