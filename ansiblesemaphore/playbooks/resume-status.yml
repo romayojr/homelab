@@ -1,0 +1,29 @@
+---
+# One-shot: status + recent logs for the resume stack
+- name: resume status
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: compose ps
+      ansible.builtin.command: docker compose -f /home/romeo/reactive-resume/compose.yml ps
+      register: psout
+    - ansible.builtin.debug:
+        var: psout.stdout_lines
+    - name: app logs since last up
+      ansible.builtin.shell: docker compose -f /home/romeo/reactive-resume/compose.yml logs --no-color --since=15m reactive_resume | grep -iE 'error|warn|fatal|exception|refus|ECONN' | tail -30
+      args:
+        executable: /bin/bash
+      register: errlogs
+      changed_when: false
+    - name: show errorish lines
+      ansible.builtin.debug:
+        var: errlogs.stdout_lines
+    - name: probe app
+      ansible.builtin.shell: curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/
+      args:
+        executable: /bin/bash
+      register: probe
+      changed_when: false
+    - ansible.builtin.debug:
+        msg: "app http {{ probe.stdout }}"
