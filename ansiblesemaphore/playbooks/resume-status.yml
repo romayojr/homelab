@@ -5,6 +5,11 @@
   become: true
   gather_facts: false
   tasks:
+    - name: show compose file
+      ansible.builtin.command: cat /home/romeo/reactive-resume/compose.yml
+      register: cfm
+    - ansible.builtin.debug:
+        var: cfm.stdout_lines
     - name: compose ps
       ansible.builtin.command: docker compose -f /home/romeo/reactive-resume/compose.yml ps
       register: psout
