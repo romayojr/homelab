@@ -1,0 +1,11 @@
+---
+- name: omni crash logs
+  hosts: all
+  become: true
+  tasks:
+    - name: docker logs
+      shell: docker logs --tail 60 omni 2>&1
+      register: lg
+      changed_when: false
+    - name: show
+      debug: var=lg.stdout_lines
