@@ -1,0 +1,39 @@
+---
+- name: Omni machineAPI advertised URL + gRPC tunnel patch
+  hosts: all
+  become: true
+  tasks:
+    - name: backup compose
+      copy:
+        src: /home/romeo/omni/compose.yaml
+        dest: /home/romeo/omni/compose.yaml.bak-eventsink
+        remote_src: yes
+    - name: insert flags idempotently and recreate omni
+      shell: |
+        set -e
+        cd /home/romeo/omni
+        if grep -q 'services.machineAPI.advertisedURL' compose.yaml; then
+          echo "already patched"
+        else
+          sed -i '/--config-path/{n;s|^\( *\)- /etc/omni/config.yaml$|\1- /etc/omni/config.yaml\n\1- --services.machineAPI.advertisedURL=https://omni-gw.romeobag.ai\n\1- --services.siderolink.useGRPCTunnel=true|}' compose.yaml
+        fi
+        grep -n 'machineAPI\|GRPCTunnel' compose.yaml
+        docker compose up -d omni 2>&1 | tail -3
+      register: patchout
+    - name: show patch output
+      debug: var=patchout.stdout_lines
+    - name: verify after restart
+      shell: |
+        sleep 10
+        docker ps | grep omni || echo CONTAINER-MISSING
+        docker inspect omni --no-trunc | grep -o 'services.machineAPI.advertisedURL=[^"]*' || echo FLAG-MISSING
+        python3 - <<'EOF'
+        import socket
+        for p in (443, 8090, 8092):
+            s = socket.socket(); s.settimeout(2)
+            print(p, "open" if s.connect_ex(("127.0.0.1", p)) == 0 else "closed")
+        EOF
+      register: ver
+      changed_when: false
+    - name: show verify
+      debug: var=ver.stdout_lines
