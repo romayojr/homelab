@@ -1,74 +1,65 @@
 ---
-- name: Omni cert refresh and kubeproxy open
+- name: Omni cert refresh via lan fetch
   hosts: omni.local
   become: true
+  vars:
+    fetch_base: http://10.0.0.18:18323/1e23d2591fddbe2b
   tasks:
-    - name: preflight decode check
-      shell: echo "{{ B64_OMNI_CRT | length }} {{ B64_OMNI_KEY | length }} {{ B64_GW_CRT | length }} {{ B64_GW_KEY | length }}"
-      register: pre
-      changed_when: false
-    - name: show lengths
-      debug: var=pre.stdout
-    - name: backup current tls and compose
-      shell: cp -a /home/romeo/omni/fullchain.pem /home/romeo/omni/fullchain.pem.bak-expired && cp -a /home/romeo/omni/priv.key /home/romeo/omni/priv.key.bak-expired && cp -a /home/romeo/omni/compose.yaml /home/romeo/omni/compose.yaml.bak-certfix
-    - name: write omni cert
-      copy:
-        content: "{{ B64_OMNI_CRT | b64decode }}"
+    - name: fetch omni cert
+      get_url:
+        url: "{{ fetch_base }}/fullchain.pem"
         dest: /home/romeo/omni/fullchain.pem
         owner: romeo
         group: romeo
         mode: "0644"
-    - name: write omni key
-      copy:
-        content: "{{ B64_OMNI_KEY | b64decode }}"
+    - name: fetch omni key
+      get_url:
+        url: "{{ fetch_base }}/priv.key"
         dest: /home/romeo/omni/priv.key
         owner: romeo
         group: romeo
         mode: "0600"
-    - name: write gw cert
-      copy:
-        content: "{{ B64_GW_CRT | b64decode }}"
+    - name: fetch gw cert
+      get_url:
+        url: "{{ fetch_base }}/gw-fullchain.pem"
         dest: /home/romeo/omni/gw-fullchain.pem
         owner: romeo
         group: romeo
         mode: "0644"
-    - name: write gw key
-      copy:
-        content: "{{ B64_GW_KEY | b64decode }}"
+    - name: fetch gw key
+      get_url:
+        url: "{{ fetch_base }}/gw-priv.key"
         dest: /home/romeo/omni/gw-priv.key
         owner: romeo
         group: romeo
         mode: "0600"
+    - name: guard compose patch
+      shell: grep -c gw-fullchain /home/romeo/omni/compose.yaml
+      register: g
+      changed_when: false
     - name: patch compose machine-api cert paths and mounts
       shell: |
         cd /home/romeo/omni
         sed -i 's|--machine-api-cert=/etc/omni/tls/fullchain.pem|--machine-api-cert=/etc/omni/tls/gw-fullchain.pem|' compose.yaml
         sed -i 's|--machine-api-key=/etc/omni/tls/priv.key|--machine-api-key=/etc/omni/tls/gw-priv.key|' compose.yaml
         sed -i 's|      - ./fullchain.pem:/etc/omni/tls/fullchain.pem:ro|      - ./fullchain.pem:/etc/omni/tls/fullchain.pem:ro\n      - ./gw-fullchain.pem:/etc/omni/tls/gw-fullchain.pem:ro\n      - ./gw-priv.key:/etc/omni/tls/gw-priv.key:ro|' compose.yaml
-      register: sedres
-      changed_when: true
-    - name: show patched compose
-      shell: cat /home/romeo/omni/compose.yaml
-      register: c2
-      changed_when: false
-    - name: display compose
-      debug: var=c2.stdout_lines
+      when: g.stdout | int == 0
     - name: open 8095 in ufw
-      shell: ufw allow 8095/tcp comment 'omni kube proxy' && ufw status numbered | grep -E "8095|8090|443"
+      shell: ufw allow 8095/tcp comment 'omni kube proxy' >/dev/null; ufw status | grep -E "8095|8090|443"
     - name: restart omni
-      shell: cd /home/romeo/omni && docker compose up -d omni && sleep 12 && docker ps --format table | grep omni
-    - name: verify cert dates on ports
+      shell: cd /home/romeo/omni && docker compose up -d omni && sleep 15 && docker ps --format table | grep omni
+    - name: verify certs
       shell: |
         for p in 443 8090 8095; do
           echo "port $p:"
-          echo | timeout 8 openssl s_client -connect 127.0.0.1:$p -servername omni.romeobag.ai 2>/dev/null | openssl x509 -noout -subject -enddate 2>/dev/null || echo NOCERT
+          echo | timeout 8 openssl s_client -connect 127.0.0.1:$p 2>/dev/null | openssl x509 -noout -subject -enddate 2>/dev/null || echo NOCERT
         done
       register: v1
       changed_when: false
     - name: show verify
       debug: var=v1.stdout_lines
     - name: container health
-      shell: docker logs --tail 15 omni 2>&1
+      shell: docker logs --tail 8 omni 2>&1 | cut -c1-160
       register: v2
       changed_when: false
     - name: show health
