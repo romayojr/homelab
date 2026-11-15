@@ -1,0 +1,23 @@
+---
+- name: Omni config read
+  hosts: omni.local
+  become: true
+  tasks:
+    - name: config.yaml
+      shell: cat /home/romeo/omni/config.yaml
+      register: c1
+      changed_when: false
+    - name: show config
+      debug: var=c1.stdout_lines
+    - name: compose full
+      shell: cat /home/romeo/omni/compose.yaml
+      register: c2
+      changed_when: false
+    - name: show compose
+      debug: var=c2.stdout_lines
+    - name: help grep proxy flags
+      shell: docker run --rm --entrypoint /omni ghcr.io/siderolabs/omni:v1.9.3 --help 2>&1 | grep -iE "kubernetes-proxy|service-account" || echo NONE
+      register: c3
+      changed_when: false
+    - name: show help
+      debug: var=c3.stdout_lines
