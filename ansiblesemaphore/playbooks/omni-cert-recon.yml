@@ -1,17 +1,29 @@
 ---
-- name: Omni cert recon 2
+- name: Omni cert recon 3
   hosts: omni.local
   become: true
   tasks:
     - name: omni dir listing
       shell: ls -la /home/romeo/omni/
+      register: r1
       changed_when: false
-    - name: compose volumes and flags
-      shell: grep -E "volumes|tls|cert|key|proxy|image:|command" /home/romeo/omni/compose.yaml
+    - name: show dir
+      debug: var=r1.stdout_lines
+    - name: compose tls and proxy lines
+      shell: grep -nE "tls|cert|key|proxy|8095" /home/romeo/omni/compose.yaml
+      register: r2
       changed_when: false
-    - name: container mounts
-      shell: docker inspect omni --format raw | tr ',' '\n' | grep -iE 'tls|Source' | head -20
+    - name: show compose
+      debug: var=r2.stdout_lines
+    - name: container tls mounts
+      shell: docker inspect omni | grep -B1 -A2 tls | head -30
+      register: r3
       changed_when: false
-    - name: certbot presence and certs
+    - name: show mounts
+      debug: var=r3.stdout_lines
+    - name: certbot
       shell: which certbot && certbot certificates 2>&1 | grep -E "Certificate Name|Expiry Date|Domains" || echo NO-CERTBOT
+      register: r4
       changed_when: false
+    - name: show certbot
+      debug: var=r4.stdout_lines
