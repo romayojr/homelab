@@ -5,7 +5,8 @@
   tasks:
     - name: help grep
       shell: |
-        docker run --rm --entrypoint /omni ghcr.io/siderolabs/omni:v1.9.3 --help 2>&1 | grep -iE 'advertised|grpc|event-sink|siderolink|machine-api|machineapi' || true
+        docker run --rm --entrypoint /omni ghcr.io/siderolabs/omni:v1.9.3 --help 2>&1 | grep -iE 'advertised|grpc|event-sink|siderolink|machine-api|machineapi' || echo ATTEMPT1-EMPTY
+        docker run --rm --entrypoint /usr/bin/omni ghcr.io/siderolabs/omni:v1.9.3 --help 2>&1 | grep -iE 'advertised|grpc|event-sink|siderolink|machine-api|machineapi' || echo ATTEMPT2-EMPTY
       register: h
       changed_when: false
     - name: show
