@@ -1,0 +1,34 @@
+---
+- name: Omni post-restart status
+  hosts: omni.local
+  become: true
+  tasks:
+    - name: docker status
+      shell: docker ps -a --format table | grep omni
+      register: s1
+      changed_when: false
+    - name: show status
+      debug: var=s1.stdout_lines
+    - name: recent logs
+      shell: docker logs --since 3m omni 2>&1 | grep -iE "error|fatal|tls|certificate|listen" | tail -12 | cut -c1-200
+      register: s2
+      changed_when: false
+    - name: show logs
+      debug: var=s2.stdout_lines
+    - name: pem sanity
+      shell: |
+        cd /home/romeo/omni
+        for f in fullchain.pem gw-fullchain.pem; do openssl x509 -in $f -noout -subject -enddate 2>&1 | head -2; done
+        for pair in "fullchain.pem priv.key" "gw-fullchain.pem gw-priv.key"; do set -- $pair; a=$(openssl x509 -in $1 -noout -pubkey 2>/dev/null | sha256sum | cut -c1-12); b=$(openssl pkey -in $2 -pubout 2>/dev/null | sha256sum | cut -c1-12); echo "$1 keymatch:$([ "$a" = "$b" ] && echo YES || echo NO)"; done
+      register: s3
+      changed_when: false
+    - name: show pem
+      debug: var=s3.stdout_lines
+    - name: ports again
+      shell: |
+        sleep 20
+        for p in 443 8090 8095; do echo "port $p:"; echo | timeout 8 openssl s_client -connect 127.0.0.1:$p 2>/dev/null | openssl x509 -noout -subject -enddate 2>/dev/null || echo NOCERT; done
+      register: s4
+      changed_when: false
+    - name: show ports
+      debug: var=s4.stdout_lines
