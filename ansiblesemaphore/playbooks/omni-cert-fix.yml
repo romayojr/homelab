@@ -4,7 +4,7 @@
   become: true
   tasks:
     - name: preflight decode check
-      shell: echo "{{ lookup('env','B64_OMNI_CRT') | length }} {{ lookup('env','B64_OMNI_KEY') | length }} {{ lookup('env','B64_GW_CRT') | length }} {{ lookup('env','B64_GW_KEY') | length }}"
+      shell: echo "{{ B64_OMNI_CRT | length }} {{ B64_OMNI_KEY | length }} {{ B64_GW_CRT | length }} {{ B64_GW_KEY | length }}"
       register: pre
       changed_when: false
     - name: show lengths
@@ -13,28 +13,28 @@
       shell: cp -a /home/romeo/omni/fullchain.pem /home/romeo/omni/fullchain.pem.bak-expired && cp -a /home/romeo/omni/priv.key /home/romeo/omni/priv.key.bak-expired && cp -a /home/romeo/omni/compose.yaml /home/romeo/omni/compose.yaml.bak-certfix
     - name: write omni cert
       copy:
-        content: "{{ lookup('env','B64_OMNI_CRT') | b64decode }}"
+        content: "{{ B64_OMNI_CRT | b64decode }}"
         dest: /home/romeo/omni/fullchain.pem
         owner: romeo
         group: romeo
         mode: "0644"
     - name: write omni key
       copy:
-        content: "{{ lookup('env','B64_OMNI_KEY') | b64decode }}"
+        content: "{{ B64_OMNI_KEY | b64decode }}"
         dest: /home/romeo/omni/priv.key
         owner: romeo
         group: romeo
         mode: "0600"
     - name: write gw cert
       copy:
-        content: "{{ lookup('env','B64_GW_CRT') | b64decode }}"
+        content: "{{ B64_GW_CRT | b64decode }}"
         dest: /home/romeo/omni/gw-fullchain.pem
         owner: romeo
         group: romeo
         mode: "0644"
     - name: write gw key
       copy:
-        content: "{{ lookup('env','B64_GW_KEY') | b64decode }}"
+        content: "{{ B64_GW_KEY | b64decode }}"
         dest: /home/romeo/omni/gw-priv.key
         owner: romeo
         group: romeo
