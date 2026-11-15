@@ -47,7 +47,8 @@ not NVMe-grade.
 2. Kubernetes v1.35.0, containerd 2.1.6, kernel 6.18.1-talos.
 3. Cluster name `talos-proxmox-cluster`, API endpoint 10.0.0.71-73:6443.
 4. Pod CIDR is per-node /24s from Flannel (for example 10.244.7.0/24 on CP-01).
-5. Machine configs are managed through Omni on VM 706. Admin talosconfig is
+5. Machine configs are managed through Omni on VM 706 (imported cluster,
+   currently locked; see docs/omni-integration.md). Admin talosconfig is
    kept on admin machines, cert valid to 2027-01-11. Renew with
    `talosctl certificates renew`.
 6. The 2026-11-14 event was a storage redeployment (disks restored onto

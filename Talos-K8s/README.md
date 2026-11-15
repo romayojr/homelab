@@ -40,4 +40,6 @@ How I administer it from an admin machine:
 1. talosconfig at `~/.talos/config`, context `talos-proxmox-cluster`,
    admin cert expires 2027-01-11.
 2. kubeconfig at `~/.kube/config`, context `admin@talos-proxmox-cluster`.
-3. Omni UI at http://10.0.0.70 or https://omni.local.romeobagay.com (VM 706).
+3. Omni v1.9.3 on VM 706: dashboard https://omni.romeobag.ai (SSO), nodes and
+   machine API via https://omni-gw.romeobag.ai:8090. Cluster is imported and
+   locked. Full runbook: docs/omni-integration.md.
