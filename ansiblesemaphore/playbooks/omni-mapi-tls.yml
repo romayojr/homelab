@@ -1,0 +1,42 @@
+---
+- name: machineAPI TLS + advertised port 8090
+  hosts: all
+  become: true
+  tasks:
+    - name: edit flags
+      shell: |
+        set -e
+        cd /home/romeo/omni
+        cp -n compose.yaml compose.yaml.bak-mapi || true
+        sed -i 's|--machine-api-advertised-url=https://omni-gw\.romeobag\.ai$|--machine-api-advertised-url=https://omni-gw.romeobag.ai:8090|' compose.yaml
+        grep -q 'machine-api-cert' compose.yaml || sed -i '/--machine-api-advertised-url=/a\      - --machine-api-cert=/etc/omni/tls/fullchain.pem\n      - --machine-api-key=/etc/omni/tls/priv.key' compose.yaml
+        grep -n 'machine-api\|grpc-tunnel' compose.yaml
+        docker compose up -d omni 2>&1 | tail -2
+      register: p
+    - name: show
+      debug: var=p.stdout_lines
+    - name: verify
+      shell: |
+        sleep 10
+        docker ps | grep omni || echo CONTAINER-MISSING
+        docker logs --tail 3 omni 2>&1 | cut -c1-160
+        python3 - <<'EOF'
+        import socket, ssl
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        for p in (443, 8090):
+            try:
+                s = socket.create_connection(("127.0.0.1", p), timeout=5) if p == 443 else socket.create_connection(("10.0.0.70", p), timeout=5)
+                try:
+                    t = ctx.wrap_socket(s, server_hostname="omni-gw.romeobag.ai")
+                    print(p, "TLS-OK", t.version())
+                except Exception as e:
+                    print(p, "plain-or-fail", str(e)[:60])
+            except OSError as e:
+                print(p, "closed", e)
+        EOF
+      register: v
+      changed_when: false
+    - name: show verify
+      debug: var=v.stdout_lines
