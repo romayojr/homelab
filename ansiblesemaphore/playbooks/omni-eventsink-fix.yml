@@ -1,0 +1,31 @@
+---
+- name: fix omni flags to kebab-case
+  hosts: all
+  become: true
+  tasks:
+    - name: rewrite bad flag lines and recreate
+      shell: |
+        set -e
+        cd /home/romeo/omni
+        sed -i 's|--services\.machineAPI\.advertisedURL=https://omni-gw\.romeobag\.ai|--machine-api-advertised-url=https://omni-gw.romeobag.ai|; s|--services\.siderolink\.useGRPCTunnel=true|--siderolink-use-grpc-tunnel|' compose.yaml
+        grep -n 'machine-api-advertised-url\|grpc-tunnel' compose.yaml
+        docker compose up -d omni 2>&1 | tail -2
+      register: p
+    - name: show
+      debug: var=p.stdout_lines
+    - name: verify
+      shell: |
+        sleep 12
+        docker ps | grep omni || echo CONTAINER-MISSING
+        docker inspect omni --no-trunc | grep -o 'machine-api-advertised-url=[^"]*' || echo FLAG-MISSING
+        docker logs --tail 5 omni 2>&1
+        python3 - <<'EOF'
+        import socket
+        for p in (80, 443, 8090, 8092, 50180):
+            s = socket.socket(); s.settimeout(2)
+            print(p, "open" if s.connect_ex(("127.0.0.1", p)) == 0 else "closed")
+        EOF
+      register: v
+      changed_when: false
+    - name: show verify
+      debug: var=v.stdout_lines
