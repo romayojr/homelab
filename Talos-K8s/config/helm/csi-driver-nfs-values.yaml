@@ -1,0 +1,14 @@
+# Source of truth: helm get values csi-driver-nfs -n kube-system (verified 2026-11-15)
+# Release: csi-driver-nfs, chart 4.13.6 (kubernetes-csi repo)
+# Reinstalled 2026-11-14 during the redeploy.
+# Note: chart 4.x has no archiveOnDelete SC parameter, and SC parameters are
+# immutable, so a wrong StorageClass needs delete plus reinstall.
+external-provisioner:
+  volumeNamePrefix: talos-
+storageClasses:
+- name: nfs-retain
+  parameters:
+    server: 10.0.0.3
+    share: /mnt/STILLMatic/Talos-K8s/pvs
+  reclaimPolicy: Retain
+  volumeBindingMode: Immediate

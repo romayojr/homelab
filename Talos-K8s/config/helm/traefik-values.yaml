@@ -1,0 +1,45 @@
+# Source of truth: helm get values traefik -n traefik (verified 2026-11-15)
+# Release: traefik, chart 40.3.0, app v3.7.4
+# Apply: helm upgrade --install traefik traefik/traefik -n traefik -f this-file
+deployment:
+  additionalContainers: []
+  annotations: {}
+  args:
+  - --global.sendanonymoususage=false
+  - --global.checknewversion=false
+  - --serversTransport.insecureSkipverify=true
+  - --log.level=DEBUG
+  enabled: true
+  initContainers: []
+  podAnnotations: {}
+  replicas: 3
+ingressRoute:
+  dashboard:
+    enabled: true
+ports:
+  web:
+    port: 80
+    protocol: TCP
+  websecure:
+    port: 443
+    protocol: TCP
+providers:
+  kubernetesCRD:
+    enabled: true
+    ingressClass: traefik-external
+    namespaces:
+    - traefik
+    - default
+  kubernetesIngress:
+    enabled: true
+rbac:
+  enabled: true
+service:
+  annotations: {}
+  enabled: true
+  externalIPs: []
+  labels: {}
+  loadBalancerSourceRanges: []
+  spec:
+    loadBalancerIP: 10.0.0.110
+  type: LoadBalancer

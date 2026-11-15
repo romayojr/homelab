@@ -1,0 +1,56 @@
+# In-cluster NetBird agent (namespace netbird-agent)
+# Reconstructed from the live Deployment 2026-11-15 and sanitized.
+# The setup key placeholder is deliberate. Create a one-time setup key in the
+# NetBird dashboard when applying, and never commit the real value.
+# hostNetwork and hostPID are required on Talos workers so the agent can do
+# raw socket / TC forwarding, privileged is currently how the live manifest
+# does it. Without these the agent registers but routes nothing, and the VPS
+# reverse proxy cannot dial any 10.0.0.x upstream.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: netbird-agent
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: netbird
+  namespace: netbird-agent
+  labels:
+    app: netbird
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: netbird
+  template:
+    metadata:
+      labels:
+        app: netbird
+    spec:
+      hostNetwork: true
+      hostPID: true
+      containers:
+      - name: netbird
+        # live runs latest, pin the current release tag before applying
+        image: netbirdio/netbird:latest
+        imagePullPolicy: Always
+        args:
+        - --setup-key
+        - "<SETUP_KEY_FROM_NETBIRD_DASHBOARD>"
+        env:
+        - name: NB_MANAGEMENT_URL
+          value: https://netbird.romeobagay.net
+        - name: NB_HOSTNAME
+          value: K8s-Agent
+        - name: NB_LOG_LEVEL
+          value: info
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /dev/net
+          name: dev-net
+      volumes:
+      - name: dev-net
+        hostPath:
+          path: /dev/net

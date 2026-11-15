@@ -1,0 +1,14 @@
+# Source of truth: helm get values cert-manager -n cert-manager (verified 2026-11-15)
+# Release: cert-manager, chart v1.20.2, app v1.20.2
+# DNS-01 challenges resolve through public resolvers on purpose so they work
+# even when the internal Pi-hole is down.
+extraArgs:
+- --dns01-recursive-nameservers=1.1.1.1:53,9.9.9.9:53
+- --dns01-recursive-nameservers-only
+installCRDs: false
+podDnsConfig:
+  nameservers:
+  - 1.1.1.1
+  - 9.9.9.9
+podDnsPolicy: None
+replicaCount: 3

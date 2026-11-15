@@ -1,0 +1,6 @@
+# Source of truth: helm get values metallb -n metallb-system (verified 2026-11-15)
+# Release: metallb, chart 0.15.3, app v0.15.3
+# Pools and advertisements are separate manifests, see
+# Kubernetes/projects/metalLB/metallb.yaml
+frr:
+  enabled: false
