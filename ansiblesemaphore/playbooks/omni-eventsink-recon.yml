@@ -1,0 +1,23 @@
+---
+- name: Omni compose recon (read-only)
+  hosts: all
+  become: true
+  tasks:
+    - name: locate omni container compose and command
+      shell: |
+        set -e
+        CID=$(docker ps -q --filter name=omni | head -1)
+        echo "CID=$CID"
+        docker inspect "$CID" > /tmp/cid.json
+        DIR=$(grep -o '"com.docker.compose.project.working_dir": "[^"]*"' /tmp/cid.json | cut -d'"' -f4)
+        CFG=$(grep -o '"com.docker.compose.project.config_files": "[^"]*"' /tmp/cid.json | cut -d'"' -f4 | cut -d, -f1)
+        echo "DIR=$DIR"
+        echo "CFG=$CFG"
+        echo "----- CMD -----"
+        python3 -c "import json;d=json.load(open('/tmp/cid.json'))[0];print(chr(10).join(d['Config']['Cmd']))" | sed -E 's/(secret|token|password)[^ ]*/\1_<REDACTED>/I'
+        echo "----- COMPOSE -----"
+        sed -E 's/.*(SECRET|TOKEN|PASSWORD).*/  <REDACTED LINE>/I' "$CFG"
+      register: recon
+      changed_when: false
+    - name: show recon
+      debug: var=recon.stdout_lines
