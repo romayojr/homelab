@@ -1,0 +1,29 @@
+---
+- name: Omni VM netbird recon
+  hosts: omni.local
+  become: true
+  tasks:
+    - name: containers
+      shell: docker ps -a --format '{{.Names}} {{.Status}}' | head -12
+      register: n1
+      changed_when: false
+    - name: show containers
+      debug: var=n1.stdout_lines
+    - name: netbird host proc
+      shell: ps aux | grep -i [n]etbird | head -5
+      register: n2
+      changed_when: false
+    - name: show proc
+      debug: var=n2.stdout_lines
+    - name: netbird status if present
+      shell: docker exec netbird sh -c "netbird status" 2>&1 | head -15
+      register: n3
+      changed_when: false
+    - name: show status
+      debug: var=n3.stdout_lines
+    - name: interfaces
+      shell: ip -4 addr show | grep -E "wt0|netbird|inet 100\." | head -5
+      register: n4
+      changed_when: false
+    - name: show ifaces
+      debug: var=n4.stdout_lines
