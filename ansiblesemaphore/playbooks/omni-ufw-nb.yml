@@ -1,0 +1,25 @@
+---
+- name: Omni VM allow netbird overlay sources
+  hosts: omni.local
+  become: true
+  tasks:
+    - name: ufw before
+      shell: ufw status numbered | grep -E "8090|443|8095|100\.78" | head -12
+      register: u1
+      changed_when: false
+    - name: show before
+      debug: var=u1.stdout_lines
+    - name: allow netbird range
+      shell: |
+        ufw allow from 100.78.0.0/16 to any port 8090 proto tcp comment 'omni mapi netbird' || true
+        ufw allow from 100.78.0.0/16 to any port 443 proto tcp comment 'omni dashboard netbird' || true
+        ufw allow from 100.78.0.0/16 to any port 8095 proto tcp comment 'omni kube proxy netbird' || true
+      register: u2
+    - name: show apply
+      debug: var=u2.stdout_lines
+    - name: ufw after
+      shell: ufw status numbered | grep -E "100\.78" | head -6
+      register: u3
+      changed_when: false
+    - name: show after
+      debug: var=u3.stdout_lines
