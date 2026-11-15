@@ -1,0 +1,17 @@
+---
+- name: Omni cert recon
+  hosts: omni.local
+  become: true
+  tasks:
+    - name: list omni tls dir
+      shell: ls -la /etc/omni/tls/
+      changed_when: false
+    - name: check certbot presence
+      shell: which certbot || echo NO-CERTBOT
+      changed_when: false
+    - name: certbot cert list
+      shell: certbot certificates 2>&1 | grep -E "Certificate Name|Expiry|Domains|Configuration directory" || true
+      changed_when: false
+    - name: compose omni flags
+      shell: grep -E "kubernetes|machine-api|cert|key" /home/romeo/omni/compose.yaml
+      changed_when: false
