@@ -144,7 +144,8 @@ omnictl --context pub193 --insecure-skip-tls-verify get machines   # 5x true
 omnictl get machines                     # pubfix default, strict TLS, same answer
 omnictl get links                        # 5x true
 kubectl --context omni-on-prem-talos-proxmox-cluster get nodes     # 5x Ready (kubelogin)
-talosctl -c talos-proxmox-cluster -n 10.0.0.71 health --wait-timeout 90s
+kubectl --context omni-on-prem-talos-proxmox-cluster get --raw /healthz   # ok
+talosctl -c talos-proxmox-cluster -n talos-cp-01 get members       # 5 members
 ```
 
 `talosctl -n <worker> health` fails with etcd `no request forwarding` - that
@@ -153,9 +154,41 @@ is CLI semantics (workers run no etcd), not cluster damage. Trust
 (kubelet, boot sequence, diagnostics, memory, disk) all pass, but the final
 `waiting for all k8s nodes to report` sub-check returns
 `PermissionDenied: not authorized` - the proxy maps CLI auth read-restricted
-for that sub-call; cosmetic, not a cluster fault. Also note Talos 1.12 has no
-`platformid`/`clustername` resources anymore; use `get machines` or `health`
-to prove proxy auth works.
+for that sub-call; cosmetic, not a cluster fault. Also note Talos 1.12 has
+renamed/removed the old `platformid`/`clustername`/`machines` resources;
+`get members` is the reliable proxy-auth proof.
+
+## Admin workstation: K3s-Admin VM (10.0.0.121)
+
+Primary kubectl/talosctl workstation is the K3s-Admin VM (user `romeo`,
+SSH alias `k3s-admin`, key `hermes_k3sadmin_ed25519`). Installed there:
+talosctl v1.12.2 (`/usr/local/bin`), kubelogin v1.36.4
+(`/usr/local/bin/kubectl-oidc-login` + `kubectl-oidc_login` symlink), the
+Omni talosconfig context with the browser-registered siderov1 key copied to
+`~/.talos/keys/omni-on-prem-talos-proxmox-cluster-romayojr@gmail.com.pgp`,
+and the Omni kubeconfig context merged into the pre-existing k3s config
+(backup `~/.kube/config.pre-omni-bak`).
+
+kubectl dials `omni.romeobag.ai:8095` (Omni's Kubernetes API proxy on the
+Omni host). That hostname still resolves to the dead VPS edge, whose 8095
+refuses connections just like 8090 does. Two-layer LAN fix:
+1. Pi-hole01 local A record `omni.romeobag.ai -> 10.0.0.70` (applies after
+   an FTL config reload, ~2-4 min). Secondary resolver 10.0.0.99 stays
+   unpinned.
+2. `/etc/hosts` pin `10.0.0.70 omni.romeobag.ai` on K3s-Admin - the VM's
+   netplan link-scoped resolvers (1.1.1.1/8.8.8.8 alongside 10.0.0.6) race
+   systemd-resolved and intermittently resurrect the public wildcard answer;
+   `files` precedence in NSS makes the hosts pin deterministic. Keep it if
+   the Omni host IP ever changes.
+
+First kubectl login from a headless box needs one browser consent through a
+tunnel CHAIN (browser host -> Hermes host with `ssh -N -L
+18000:localhost:18000 romeo@10.0.0.18`, Hermes host -> VM with `ssh -N -L
+18000:localhost:18000 k3s-admin`), kubelogin listening with
+`--listen-address 127.0.0.1:18000`. Use 18000, not 8000: Windows Hyper-V
+reserves the 8000 range and the local bind fails. Device-code grant is not
+an option - Omni's dex `native` client has it disabled. After the first
+success the token cache (`~/.kube/cache/oidc-login`) refreshes silently.
 
 ## Known open item
 
