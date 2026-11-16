@@ -60,10 +60,15 @@ overlay toward `10.0.0.70`:
 Relay 2 is self-healing: the sidecar re-injects the binary and restarts it
 every 30s if the proxy container is recreated.
 
-Old experiment, now removed: a Pi-hole A record pinning `omni.romeobag.ai` to
-`10.0.0.70` for split-horizon. It was deleted on 2026-11-15; the public
-wildcard + `omni-gw` split is the authoritative design. `omni.local ->
-10.0.0.70` still exists in Pi-hole but is not used by node config.
+Split-horizon note, updated same day: a Pi-hole A record pinning
+`omni-gw.romeobag.ai -> 10.0.0.70` (Pi-hole01, 10.0.0.6) is live and is the
+recovery path when the VPS relay hop dies - see
+`docs/omni-tunnel-transport-incident-2026-11.md`. The public wildcard still
+answers off-LAN; the pin only changes LAN resolvers, and the Talos nodes use
+Pi-hole01 (visible in its query log). The old removed pin was on the
+dashboard hostname `omni.romeobag.ai`, which remains public-only.
+`omni.local -> 10.0.0.70` still exists in Pi-hole but is not used by node
+config.
 
 ## CLI pairing (version trap)
 
@@ -81,6 +86,33 @@ omnictl --context pub193 --insecure-skip-tls-verify get machines
 
 Auth is a browser public-key approval (PGP key under `~/.talos/keys/`), not a
 password.
+
+Strict-TLS default context (no skip flag) as of 2026-11-15 evening:
+
+```
+# ~/.talos/omni/config -> context: pubfix
+# url: https://omni.romeobag.ai  (control host /etc/hosts pins it to 10.0.0.70)
+omnictl get machines
+```
+
+`pubfix` reuses the registered `pub193` PGP key file, copied to
+`pubfix-<identity>.pgp` under `~/.talos/keys/`. Do not run auth-bearing
+omnictl calls blindly: a failed or killed attempt regenerates the context key
+in place and silently unregisters it.
+
+`kubectl` against the Omni kubeconfig (`omni-on-prem-talos-proxmox-cluster`
+context) needs kubelogin: `~/bin/kubectl-oidc-login` (v1.36.4, plus
+`kubectl-oidc_login` symlink). Headless path:
+`kubectl oidc-login get-token <same args as kubeconfig exec>
+--skip-open-browser --authentication-timeout-sec 900`, then click the printed
+URL in a browser that already has the Omni/authentik session (TOTP applies).
+
+talosctl through the Omni proxy authenticates with its OWN key file
+(`~/.talos/keys/<talosconfig-context>-<identity>.pgp`), which must be
+server-registered once via the printed `/authenticate?flow=cli` browser
+approval (same one-click mechanism as omnictl). Node addressing via the
+proxy: machine UUID, IP, or hostname without the `.local` suffix all
+resolve; `talos-cp-01.local` does not.
 
 ## Import facts (for a future re-import)
 
@@ -109,9 +141,10 @@ omnictl --context pub193 --insecure-skip-tls-verify cluster import \
 
 ```
 omnictl --context pub193 --insecure-skip-tls-verify get machines   # 5x true
-omnictl --context pub193 --insecure-skip-tls-verify get links      # 5x true
-kubectl --context admin@talos-proxmox-cluster get nodes            # 5x Ready
-talosctl -n 10.0.0.71 health --wait-timeout 90s                    # 16x OK
+omnictl get machines                     # pubfix default, strict TLS, same answer
+omnictl get links                        # 5x true
+kubectl --context omni-on-prem-talos-proxmox-cluster get nodes     # 5x Ready (kubelogin)
+talosctl -c talos-proxmox-cluster -n 10.0.0.71 health --wait-timeout 90s
 ```
 
 `talosctl -n <worker> health` fails with etcd `no request forwarding` - that
@@ -119,6 +152,15 @@ is CLI semantics (workers run no etcd), not cluster damage. Trust
 `kubectl get nodes` for workers.
 
 ## Known open item
+
+0. (NEW 2026-11-15 evening) The VPS-side omni-gw relay hop (`23.94.59.10:8090`
+   -> overlay -> `10.0.0.70:8090`) is dead: TCP accepts, zero bytes forwarded.
+   The Pi-hole `omni-gw` LAN pin keeps the five node tunnels working around it
+   (see `omni-tunnel-transport-incident-2026-11.md`), but off-LAN dialing of
+   `omni-gw` stays broken until the overlay router hop is repaired. Also still
+   stale in `SiderolinkAPIConfigs`: `wireguardadvertisedendpoint:
+   50.106.22.181:50180` matches nothing deployed (harmless while
+   `enforcegrpctunnel: true`).
 
 The in-cluster `netbird-agent` deployment (namespace `netbird-agent`) has one
 pod crash-looping: its client authenticates with an SSO device flow that can

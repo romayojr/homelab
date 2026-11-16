@@ -19,11 +19,14 @@ What lives where:
 3. `docs/netbird-cert-incident-2026-11.md`. The NetBird Certificate Issuer
    failure, the Traefik `it-tools-k8s` fix, the PIN auth hardening in front of
    the service, and the verification evidence.
-4. `config/helm/`. The four Helm values files exactly as applied
+4. `docs/omni-tunnel-transport-incident-2026-11.md`. The same-day 0/5-link
+   outage: root cause at the VPS relay hop, the Pi-hole `omni-gw` LAN pin fix,
+   and the client-tool cleanup that followed.
+5. `config/helm/`. The four Helm values files exactly as applied
    (`helm get values` exports, secrets-free).
-5. `config/k8s/netbird-agent/`. The in-cluster NetBird agent manifests,
+6. `config/k8s/netbird-agent/`. The in-cluster NetBird agent manifests,
    sanitized. The setup key is a placeholder on purpose.
-6. `config/talos/`. How to regenerate machine configs and where the real ones
+7. `config/talos/`. How to regenerate machine configs and where the real ones
    actually live. Machine configs and admin certs never go in git.
 
 Related folders that already existed and stay canonical:
