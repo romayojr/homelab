@@ -1,0 +1,29 @@
+---
+- name: Omni machine api recon
+  hosts: omni.local
+  become: true
+  tasks:
+    - name: listeners
+      shell: ss -ltnp | grep -E "8090|8092|8095|443|8091" | head -8
+      register: m1
+      changed_when: false
+    - name: show listeners
+      debug: var=m1.stdout_lines
+    - name: machineapi-sidero logs
+      shell: docker logs --since 2h omni 2>&1 | grep -iE "siderolink|eventsink|machine-api|machineapi|tunnel|wg |wireguard|join" | tail -25 | cut -c1-230
+      register: m2
+      changed_when: false
+    - name: show sidero
+      debug: var=m2.stdout_lines
+    - name: any warns
+      shell: docker logs --since 2h omni 2>&1 | grep -iE '"level":"(warn|error|fatal)"' | grep -viE "status update skipped|reconcile" | tail -20 | cut -c1-230
+      register: m3
+      changed_when: false
+    - name: show warns
+      debug: var=m3.stdout_lines
+    - name: conntrack 8090
+      shell: conntrack -L 2>/dev/null | grep -cE "8090" || ss -tn state established '( sport = :8090 )' | head -5
+      register: m4
+      changed_when: false
+    - name: show conns
+      debug: var=m4.stdout_lines
