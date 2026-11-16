@@ -149,7 +149,13 @@ talosctl -c talos-proxmox-cluster -n 10.0.0.71 health --wait-timeout 90s
 
 `talosctl -n <worker> health` fails with etcd `no request forwarding` - that
 is CLI semantics (workers run no etcd), not cluster damage. Trust
-`kubectl get nodes` for workers.
+`kubectl get nodes` for workers. Via the Omni proxy, `health` service checks
+(kubelet, boot sequence, diagnostics, memory, disk) all pass, but the final
+`waiting for all k8s nodes to report` sub-check returns
+`PermissionDenied: not authorized` - the proxy maps CLI auth read-restricted
+for that sub-call; cosmetic, not a cluster fault. Also note Talos 1.12 has no
+`platformid`/`clustername` resources anymore; use `get machines` or `health`
+to prove proxy auth works.
 
 ## Known open item
 
