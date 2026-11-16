@@ -1,0 +1,23 @@
+---
+- name: Omni server logs v2
+  hosts: omni.local
+  become: true
+  tasks:
+    - name: container state
+      shell: docker ps -a --format table | grep omni
+      register: o1
+      changed_when: false
+    - name: show state
+      debug: var=o1.stdout_lines
+    - name: recent errors
+      shell: docker logs --since 30m omni 2>&1 | grep -iE "error|warn|fatal|sidero|machine|tunnel|peer" | tail -40 | cut -c1-220
+      register: o2
+      changed_when: false
+    - name: show errors
+      debug: var=o2.stdout_lines
+    - name: tail raw
+      shell: docker logs --tail 30 omni 2>&1 | cut -c1-220
+      register: o3
+      changed_when: false
+    - name: show tail
+      debug: var=o3.stdout_lines
