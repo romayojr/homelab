@@ -1,0 +1,23 @@
+---
+- name: kubernetesproxy check
+  hosts: omni.local
+  become: true
+  tasks:
+    - name: port 10000
+      shell: ss -ltnp | grep 10000 || echo NO-10000
+      register: k1
+      changed_when: false
+    - name: show port
+      debug: var=k1.stdout_lines
+    - name: kp logs
+      shell: docker logs omni 2>&1 | grep -iE "kubernetesproxy|kubernetes-proxy|kubernetes proxy|proxy.*cert" | tail -15 | cut -c1-240
+      register: k2
+      changed_when: false
+    - name: show kp
+      debug: var=k2.stdout_lines
+    - name: compose omni service
+      shell: sed -n '/omni:/,/^  [a-z]/p' /home/romeo/omni/compose.yaml | head -40
+      register: k3
+      changed_when: false
+    - name: show compose
+      debug: var=k3.stdout_lines
