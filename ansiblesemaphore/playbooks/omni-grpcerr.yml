@@ -1,0 +1,17 @@
+---
+- name: Omni grpc error detail
+  hosts: omni.local
+  become: true
+  tasks:
+    - name: full error lines
+      shell: docker logs --since 10m omni 2>&1 | grep '"level":"error"' | tail -3
+      register: g1
+      changed_when: false
+    - name: show full
+      debug: var=g1.stdout_lines
+    - name: streaming open lines
+      shell: docker logs --since 10m omni 2>&1 | grep -E "starting streaming call|finished streaming call" | tail -6 | cut -c1-400
+      register: g2
+      changed_when: false
+    - name: show streams
+      debug: var=g2.stdout_lines
